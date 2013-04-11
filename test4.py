@@ -14,6 +14,7 @@ import sys
 import mpipe
 
 import util
+import iproc
 
 # Retrieve command line arguments.
 try:
@@ -126,13 +127,8 @@ class Preprocessor(mpipe.OrderedWorker):
     def doTask(self, task):
         try:
             tstamp = datetime.datetime.now()
-            cv2.cvtColor(
-                task['image_in'], 
-                cv2.COLOR_BGR2GRAY, 
-                task['image_pre'],
-                )
-            cv2.equalizeHist(
-                task['image_pre'],
+            iproc.preprocess(
+                task['image_in'],
                 task['image_pre'],
                 )
             task['tstamp_pre1'] = tstamp
@@ -177,63 +173,11 @@ class Postprocessor(mpipe.OrderedWorker):
     def doTask(self, task):
         try:
             tstamp = datetime.datetime.now()
-
-            cv2.threshold(
-                task['image_diff'],
-                thresh=35,
-                maxval=255,
-                type=cv2.THRESH_BINARY,
-                dst=task['image_post'],
-                )
-
-            # Find contours.
-            contours, hier = cv2.findContours(
+            iproc.postprocess(
                 task['image_post'],
-                #numpy.copy(image_diff),
-                #mode=cv2.RETR_LIST,
-                mode=cv2.RETR_EXTERNAL,
-                method=cv2.CHAIN_APPROX_NONE,
-                #method=cv2.CHAIN_APPROX_SIMPLE,
-                )        
-
-            # Sort and filter contours.
-            area_threshold = task['image_post'].shape[0] * task['image_post'].shape[1]
-            area_threshold *= 0.00005 /2
-            contours = sorted(
-                contours, 
-                key=lambda x: cv2.contourArea(x), 
-                reverse=True)
-            contours_filt = []
-            for contour in contours:
-                area = cv2.contourArea(contour)
-
-                # Since contours are sorted, we can safely break out 
-                # of the loop once area falls below threshold.
-                if area < area_threshold:
-                    break
-
-                # Add this contour to the collection.
-                contours_filt.append(contour)
-
-            # Augment output image with contours.
-            cv2.drawContours(
+                task['image_diff'],
                 task['image_out'],
-                contours_filt,
-                -1,
-                color=(0, 254, 254),  # Yellow.
-                thickness=2,
                 )
-
-            # Augment output image with rectangles.
-            for contour in contours_filt:
-                x,y,w,h = cv2.boundingRect(contour)
-                cv2.rectangle(
-                    task['image_out'],
-                    (x,y),
-                    (x+w,y+h),
-                    color=(0, 254, 0),
-                    thickness=2,
-                    )
             task['tstamp_post1'] = tstamp
             task['tstamp_post2'] = datetime.datetime.now()
         except:

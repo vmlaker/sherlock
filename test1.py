@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 import util
+import iproc
 
 WIDTH  = int(sys.argv[1])
 HEIGHT = int(sys.argv[2])
@@ -32,8 +33,7 @@ image_acc = None
 
 def step1(image):
     """Return preprocessed image."""
-    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    return cv2.equalizeHist(image_gray)
+    return iproc.preprocess2(image)
  
 def step2(image, alpha):
     """Compute difference between given image and accumulation,
@@ -63,70 +63,15 @@ def step2(image, alpha):
     return image_diff
 
 def step3(image, image_diff):
-    """Augment given image with given difference."""
-
-    # Apply threshold.
-    hello, image_thresh = cv2.threshold(
-        image_diff,
-        thresh=35,
-        maxval=255,
-        type=cv2.THRESH_BINARY,
-        )
-
-    # Find contours.
-    contours, hier = cv2.findContours(
-        image_thresh,
-        #np.copy(image_thresh),
-        mode=cv2.RETR_EXTERNAL,
-        method=cv2.CHAIN_APPROX_NONE,
-        )        
-
-    # Sort and filter contours.
-    # Use a sensible threshold value based on image resolution.
-    area_threshold = image_thresh.shape[0] * image_thresh.shape[1]
-    area_threshold *= 0.00005 /2
-    contours = sorted(
-        contours, 
-        key=lambda x: cv2.contourArea(x), 
-        reverse=True)
-    filtered = []
-    for contour in contours:
-        area = cv2.contourArea(contour)
-
-        # Since contours are sorted, we can safely break out 
-        # of the loop once area falls below threshold.
-        if area < area_threshold:
-            break
-
-        # Add this contour to the collection.
-        filtered.append(contour)
-
-    # Augment output image with contours.
-    cv2.drawContours(
-        image,
-        filtered,
-        -1,
-        color=(0, 254, 254),  # Yellow.
-        thickness=2,
-        )
-
-    # Augment output image with rectangles.
-    for contour in filtered:
-        x,y,w,h = cv2.boundingRect(contour)
-        cv2.rectangle(
-            image,
-            (x,y),
-            (x+w,y+h),
-            color=(0, 254, 0),
-            thickness=2,
-            )
+    """Postprocess image using given difference."""
+    iproc.postprocess(image, image_diff)
 
 # Monitor framerates for the given seconds past.
 framerate = util.RateTicker((1,5,10))
 
 def step4():
-
-    # Display the images.
+    """Display the result of processing."""
+    # Show the images.
     for name in NAMES:
         exec('the_image = %s'%name)
         cv2.imshow(name, the_image)
@@ -136,18 +81,8 @@ def step4():
     global framerate
     print('%05.3f, %05.3f, %05.3f'%framerate.tick())
 
-tstamp_prev = None  # Keep track of previous iteration's timestamp.
-def getAlpha():
-    """Return alpha value based on elapsed time."""
-    global tstamp_prev
-    now = datetime.datetime.now()
-    alpha = 1.0
-    if tstamp_prev:
-        tdelta = now - tstamp_prev
-        alpha = tdelta.total_seconds()
-        alpha *= 0.50  # Halve the alpha value -- looks better.
-    tstamp_prev = now
-    return alpha        
+# Keep track of previous iteration's timestamp.
+tstamp_prev = None  
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
@@ -156,7 +91,7 @@ while end > datetime.datetime.now():
     hello, image = cap.read()
 
     # Compute alpha value.
-    alpha = getAlpha()
+    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
 
     # Preprocess the image.
     image_pre = step1(image)
