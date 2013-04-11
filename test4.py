@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+"""Full multiple process image processing -- with shared memory
+and GStreamer webcam streaming."""
 
 import multiprocessing
 import sharedmem
@@ -224,7 +225,7 @@ class Postprocessor(mpipe.OrderedWorker):
                 )
 
             # Augment output image with rectangles.
-            if 0: #for contour in contours_filt:
+            for contour in contours_filt:
                 x,y,w,h = cv2.boundingRect(contour)
                 cv2.rectangle(
                     task['image_out'],
