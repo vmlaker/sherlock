@@ -75,29 +75,34 @@ def step3((image, image_diff)):
     iproc.postprocess(image, image_diff)
     return image
 
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
-def step4(image):
+def showImage(image):
     """Display the result of processing."""
     # Show the images.
     for name in NAMES:
         exec('the_image = %s'%name)
         cv2.imshow(name, the_image)
     cv2.waitKey(1)
+    return True
 
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
+
+def printStatus(hello):
     # Print the framerate.
     global framerate
     print('%05.3f, %05.3f, %05.3f'%framerate.tick())
 
-stage1 = mpipe.OrderedStage(step1)
-stage2 = mpipe.Stage(Step2Worker)
-stage3 = mpipe.OrderedStage(step3)
-stage4 = mpipe.OrderedStage(step4)
-stage1.link(stage2)
-stage2.link(stage3)
-stage3.link(stage4)
-pipe = mpipe.Pipeline(stage1)
+stages = list()
+stages.append(mpipe.OrderedStage(step1))
+stages.append(mpipe.Stage(Step2Worker))
+stages.append(mpipe.OrderedStage(step3))
+stages.append(mpipe.OrderedStage(showImage))
+stages.append(mpipe.OrderedStage(printStatus))
+stages[0].link(stages[1])
+stages[1].link(stages[2])
+stages[2].link(stages[3])
+stages[3].link(stages[4])
+pipe = mpipe.Pipeline(stages[0])
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
