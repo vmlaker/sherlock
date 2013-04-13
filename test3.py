@@ -9,12 +9,13 @@ import mpipe
 import util
 import iproc
 
-WIDTH  = int(sys.argv[1])
-HEIGHT = int(sys.argv[2])
-DURATION = float(sys.argv[3])  # In seconds.
+DEVICE   = int(sys.argv[1])
+WIDTH    = int(sys.argv[2])
+HEIGHT   = int(sys.argv[3])
+DURATION = float(sys.argv[4])  # In seconds.
 
 # Create the OpenCV video capture object.
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(DEVICE)
 cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
