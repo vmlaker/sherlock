@@ -16,23 +16,11 @@ import mpipe
 import util
 import iproc
 
-# Retrieve command line arguments.
-try:
-    DEVICE   = sys.argv[1]
-    WIDTH    = int(sys.argv[2])
-    HEIGHT   = int(sys.argv[3])
-    DEPTH    = int(sys.argv[4])
-    DURATION = float(sys.argv[5])
-    try:
-        HOST = sys.argv[6]
-        PORT = int(sys.argv[7])
-    except:
-        HOST = None
-        PORT = None
-except:
-    print('Usage:  %s device width height depth duration [ host port ]'%sys.argv[0])
-    sys.exit(1)
-
+DEVICE   = sys.argv[1]
+WIDTH    = int(sys.argv[2])
+HEIGHT   = int(sys.argv[3])
+DEPTH    = int(sys.argv[4])
+DURATION = float(sys.argv[5])
 
 # Create process-shared tables, 
 # one holding allocated memories keyed on timestamp,
@@ -182,39 +170,6 @@ class Postprocessor(mpipe.OrderedWorker):
             task['tstamp_post2'] = datetime.datetime.now()
         except:
             print('error running postprocessor !!!')
-
-        return task
-
-
-class Sender(mpipe.OrderedWorker):
-    """Sends processed image on a network socket."""
-    def __init__(self, input_tube, output_tube):
-        super(Sender, self).__init__(input_tube, output_tube)
-
-        # Attempt to make a connection.
-        try:
-            print('connecting to %s:%s'%(HOST, PORT))
-            self.client = multiprocessing.connection.Client((HOST, PORT))
-            print('connected')
-        except:
-            self.client = None
-            print('failed to connect, nevermind')
-
-    def doTask(self, task):
-        try:
-            tstamp = datetime.datetime.now()
-            if self.client is not None:
-                shape = numpy.shape(task['image_out'])
-                message = (
-                    task['tstamp_onbuffer1'],
-                    shape,
-                    task['image_out'],
-                    )
-                self.client.send(message)
-            task['tstamp_send1'] = tstamp
-            task['tstamp_send2'] = datetime.datetime.now()
-        except:            
-            print('error running sender !!!')
 
         return task
 
@@ -377,25 +332,8 @@ class Streamer(multiprocessing.Process):
         #time.sleep(0.100)
         return True
 
-
-class Getter(multiprocessing.Process):
-    """Pulls results from the image processor."""
-
-    def __init__(self, iprocessor):
-        """Initialize the object with the given image processor."""
-        super(Getter, self).__init__()
-        self._iprocessor = iprocessor
-
-    def run(self):
-        """Keep fetching the latest result from the image processor
-        until the processor has quit."""
-        while True:
-            result = self._iprocessor.get()
-            if result is None: break                
-
-
 # Create stages of for the image processing pipeline.
-NUM_WORKERS = 4
+NUM_WORKERS = 1
 specs = (
     (Allocator          ,NUM_WORKERS),
     (Preprocessor       ,NUM_WORKERS),
@@ -415,7 +353,7 @@ stages[0].link(stages[1])
 stages[1].link(stages[2])
 stages[2].link(stages[3])
 stages[3].link(stages[4])
-#stages[0].link(stages[5])
+stages[0].link(stages[5])
 #stages[1].link(stages[6])
 #stages[2].link(stages[7])
 #stages[3].link(stages[8])
@@ -424,13 +362,16 @@ stages[3].link(stages[9])
 # Create the image processor.
 iprocessor = ImageProcessor(stages[0])
 
-# Create streamer and getter.
-streamer = Streamer(iprocessor)
-getter = Getter(iprocessor)
+def pull(tstamp):
+    for tstamp in iprocessor.results():
+        pass
+pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(pull))
+pipe2.put(True)
+pipe2.put(None)
 
-# Start the streamer and getter.
+# Create and start the streamer.
+streamer = Streamer(iprocessor)
 streamer.start()
-getter.start()
 
 # Run for designated duration period.
 print('sleeping for %s seconds'%DURATION)
@@ -443,8 +384,8 @@ print('joining streamer')
 streamer.join()
 print('stopping iprocessor')
 iprocessor.put(None)
-print('joining getter')
-getter.join()
+for result in pipe2.results():
+    pass
 
 print('the end')
 
