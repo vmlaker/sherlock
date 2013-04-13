@@ -87,7 +87,7 @@ def postprocess(image, image_diff, image_out=None):
         filtered,
         -1,
         color=(0, 255, 255),  # Yellow.
-        thickness=1,
+        thickness=2,
         )
 
     # Augment output image with rectangles.
@@ -98,7 +98,7 @@ def postprocess(image, image_diff, image_out=None):
             (x,y),
             (x+w,y+h),
             color=(0, 255, 0),
-            thickness=1,
+            thickness=2,
             )
 
 # The end.
