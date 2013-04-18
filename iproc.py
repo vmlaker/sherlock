@@ -3,14 +3,24 @@
 import datetime
 import cv2
 
-def getAlpha(tstamp_prev):
-    """Return (alpha, tstamp_new) based on given timestamp."""
+def getAlpha(tstamp_prev, max_life=1.0):
+    """Return (alpha, tstamp_new) based on given timestamp.
+    The alpha value is in range [0.0, 1.0], scaled from the
+    distance between *tstamp_prev* and now, the distance 
+    maximized at *max_life* seconds.
+    For example:  distance  max_life  alpha
+                  --------  --------  -----
+                      3         6      0.5
+                      6         6      1.0
+                      9         6      1.0
+    """
     now = datetime.datetime.now()
-    alpha = 1.0
+    alpha = 1.0  # Default is 100% opacity.
     if tstamp_prev:
         tdelta = now - tstamp_prev
         alpha = tdelta.total_seconds()
-        alpha *= 0.50  # Halve the alpha value -- looks better.
+        alpha = min(alpha, float(max_life))
+        alpha /= max_life
     return alpha, now
 
 def preprocess(image_in, image_out):
