@@ -28,16 +28,13 @@ cap.set(4, HEIGHT)
 manager = multiprocessing.Manager()
 common = manager.dict()
 
-# Accumulation of thresholded differences.
-image_acc = None  
-
 # Keep track of previous iteration's timestamp.
 tstamp_prev = None  
 
 def step1(tstamp):
     """Return preprocessed image."""
     global tstamp_prev
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev, 3)
+    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev, 1)
     
     # Reassign the modified object to the proxy container in order to
     # notify manager that the mutable value (the dictionary) has changed. See for details:
@@ -49,7 +46,13 @@ def step1(tstamp):
     iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
     return tstamp
  
+
 class Step2Worker(mpipe.OrderedWorker):
+
+    def __init__(self, alpha_mult):
+        self._alpha_mult = alpha_mult  # Alpha multiplier.
+        self._image_acc = None  # Accumulation of thresholded differences.
+
     def doTask(self, tstamp):
         """Compute difference between given image and accumulation,
         then accumulate and set result with the difference. 
@@ -58,16 +61,13 @@ class Step2Worker(mpipe.OrderedWorker):
         image_pre = common[tstamp]['image_pre']
         alpha = common[tstamp]['alpha']
         
-        # Use global accumulation.
-        global image_acc
-
         # Initalize accumulation if so indicated.
         if alpha == 1.0:
-            image_acc = np.empty(np.shape(image_pre))
+            self._image_acc = np.empty(np.shape(image_pre))
 
         # Compute difference.
         cv2.absdiff(
-            image_acc.astype(image_pre.dtype),
+            self._image_acc.astype(image_pre.dtype),
             image_pre,
             common[tstamp]['image_diff']
             )
@@ -77,8 +77,8 @@ class Step2Worker(mpipe.OrderedWorker):
         # Accumulate.
         hello = cv2.accumulateWeighted(
             image_pre,
-            image_acc,
-            alpha,
+            self._image_acc,
+            alpha * self._alpha_mult,
             )
         
 def step3(tstamp):
@@ -91,28 +91,21 @@ def step3(tstamp):
     return tstamp
 
 class Viewer(mpipe.OrderedWorker):
-    """Base class viewer implementation, specialized in
-    subclasses by overriding getName()."""
+    """Displays image in a window."""
+
+    def __init__(self, image_name):
+        """Initialize object with name of image."""
+        self._image_name = image_name
+
     def doTask(self, tstamp):
-        name = self.getName()
         try:
-            cv2.namedWindow(name, cv2.cv.CV_WINDOW_NORMAL)
-            image = common[tstamp][name]
-            cv2.imshow(name, image)
+            cv2.namedWindow(self._image_name, cv2.cv.CV_WINDOW_NORMAL)
+            image = common[tstamp][self._image_name]
+            cv2.imshow(self._image_name, image)
             cv2.waitKey(1)
         except:
-            print('error running viewer %s !!!'%name)
+            print('error running viewer %s !!!'%self._image_name)
         return tstamp
-    def getName(self): return 'base'
-
-class ViewerIn(Viewer):
-    def getName(self): return 'image_in'
-class ViewerPre(Viewer):
-    def getName(self): return 'image_pre'
-class ViewerDiff(Viewer):
-    def getName(self): return 'image_diff'
-class ViewerOut(Viewer):
-    def getName(self): return 'image_out'
 
 
 def stall(tstamp):
@@ -132,17 +125,15 @@ def printStatus(tstamp):
     print('%05.3f, %05.3f, %05.3f'%framerate.tick())
     return tstamp
 
-# Create the output viewer pipeline.
-viewer_out = mpipe.Stage(ViewerOut)
-pipe_vout = mpipe.Pipeline(viewer_out)
-
-# Create the diff viewer pipeline.
-viewer_diff = mpipe.Stage(ViewerDiff)
-pipe_vdiff = mpipe.Pipeline(viewer_diff)
+# Create the two viewer pipelines.
+pipe_vout = mpipe.Pipeline(
+    mpipe.Stage(Viewer, 1, image_name='image_out'))
+pipe_vdiff = mpipe.Pipeline(
+    mpipe.Stage(Viewer, 1, image_name='image_diff'))
 
 # Create the image processing stages.
 step1 = mpipe.OrderedStage(step1)
-step2 = mpipe.Stage(Step2Worker)
+step2 = mpipe.Stage(Step2Worker, size=1, alpha_mult=0.50)
 step3 = mpipe.OrderedStage(step3)
 
 # Create the other, downstream stages.
@@ -151,11 +142,11 @@ filter_vout = mpipe.FilterStage(pipe_vout)
 stall = mpipe.OrderedStage(stall)
 printer = mpipe.OrderedStage(printStatus)
 
-# Link the stages into a pipeline.
+# Link the stages into the image processing pipeline:
 #
-#  step1 ---> step2 ---+---> step3 --------+---> filter_vout ---> stall
-#                      |                   |
-#                      +---> filter_vdiff  +---> printer
+#  step1 ---> step2 --+--> step3 --------+--> filter_vout ---> stall
+#                     |                  |
+#                     +--> filter_vdiff  +--> printer
 #
 step1.link(step2)
 step2.link(step3)
@@ -163,20 +154,20 @@ step2.link(filter_vdiff)
 step3.link(filter_vout)
 step3.link(printer)
 filter_vout.link(stall)
-pipe = mpipe.Pipeline(step1)
+pipe_iproc = mpipe.Pipeline(step1)
 
 # Create an auxiliary pipeline that simply pulls results from
 # the image processing pipeline, and deallocates the shared
 # memory associated with pulled timestamps. 
 def pull(tstamp):
     prev = None
-    for tstamp in pipe.results():
+    for tstamp in pipe_iproc.results():
         if prev is not None:
             del common[prev]
         prev = tstamp
     del common[prev]
 pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
-pipe_pull.put(True)
+pipe_pull.put(True)  # Start it up right away.
 
 # Run the video capture loop, allocating shared memory
 # and feeding the image processing pipeline.
@@ -198,7 +189,7 @@ while end > now:
     image_diff = sharedmem.empty(shape[:2], dtype)
     image_out  = sharedmem.empty(shape,     dtype)
     
-    # Copy the input image to it's shared memory version,
+    # Copy the input image to its shared memory version,
     # and also to the eventual output image memory.
     image_in[:] = image.copy()
     image_out[:] = image.copy()
@@ -210,10 +201,10 @@ while end > now:
         'image_out'  : image_out,
         'alpha'      : 1.0,
         }
-    pipe.put(now)
+    pipe_iproc.put(now)
 
 # Send the "stop" task to all pipelines.
-pipe.put(None)
+pipe_iproc.put(None)
 pipe_pull.put(None)
 pipe_vdiff.put(None)
 pipe_vout.put(None)
