@@ -37,7 +37,7 @@ tstamp_prev = None
 def step1(tstamp):
     """Return preprocessed image."""
     global tstamp_prev
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
+    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev, 3)
     
     # Reassign the modified object to the proxy container in order to
     # notify manager that the mutable value (the dictionary) has changed. See for details:
@@ -56,7 +56,6 @@ class Step2Worker(mpipe.OrderedWorker):
         Initialize accumulation if needed (if opacity is 100%.)"""
         
         image_pre = common[tstamp]['image_pre']
-        image = common[tstamp]['image_in']
         alpha = common[tstamp]['alpha']
         
         # Use global accumulation.
@@ -115,43 +114,6 @@ class ViewerDiff(Viewer):
 class ViewerOut(Viewer):
     def getName(self): return 'image_out'
 
-viewer_out = mpipe.Stage(ViewerOut)
-pipe3 = mpipe.Pipeline(viewer_out)
-
-class Filter(mpipe.OrderedWorker):
-
-    def __init__(self):
-        # Keep track of number of tasks in pipe3.
-        self.count = 0
-
-    def doTask(self, tstamp):
-        """Filter input to pipe3. Make sure pipe3 has no more
-        than two tasks in it."""
-
-        # At this point the count is 0, 1, or 2.
-        # Let's attempt to pull all (if any) results from the pipe.
-        if self.count == 2:
-            valid, result = pipe3.get(sys.float_info.min)
-            self.count -= int(valid)
-            if valid:
-                valid, result = pipe3.get(sys.float_info.min)
-                self.count -= int(valid)
-        elif self.count == 1:
-            valid, result = pipe3.get(sys.float_info.min)
-            self.count -= int(valid)
-
-        # At this point the count is still 0, 1, or 2.
-        # Any pull attempt above may not have been successful.
-        
-        # If there is room for the task, put it on the pipe.
-        if self.count in (0, 1):
-            pipe3.put(tstamp)
-            self.count += 1
-
-        # At this point the count is 1 or 2.
-        # We're done, so return the timestamp.
-        return tstamp
-
 
 def stall(tstamp):
     """Make sure the timestamp is at least a certain 
@@ -170,39 +132,42 @@ def printStatus(tstamp):
     print('%05.3f, %05.3f, %05.3f'%framerate.tick())
     return tstamp
 
+# Create the output viewer pipeline.
+viewer_out = mpipe.Stage(ViewerOut)
+pipe_vout = mpipe.Pipeline(viewer_out)
+
+# Create the diff viewer pipeline.
+viewer_diff = mpipe.Stage(ViewerDiff)
+pipe_vdiff = mpipe.Pipeline(viewer_diff)
+
 # Create the image processing stages.
 step1 = mpipe.OrderedStage(step1)
 step2 = mpipe.Stage(Step2Worker)
 step3 = mpipe.OrderedStage(step3)
 
-# Create the output display stages.
-viewer_in = mpipe.Stage(ViewerIn)
-viewer_pre = mpipe.Stage(ViewerPre)
-viewer_diff = mpipe.Stage(ViewerDiff)
-#viewer_out = mpipe.Stage(ViewerOut)
-filter = mpipe.Stage(Filter)
+# Create the other, downstream stages.
+filter_vdiff = mpipe.FilterStage(pipe_vdiff)
+filter_vout = mpipe.FilterStage(pipe_vout)
 stall = mpipe.OrderedStage(stall)
 printer = mpipe.OrderedStage(printStatus)
 
 # Link the stages into a pipeline.
 #
-#  step1 ---+---> step2 ------+---> step3 --------+---> filter ---> stall
-#           |                 |                   |
-#           +---> viewer_in   +---> viewer_diff   +---> printer
-#           |
-#           +---> viewer_pre
+#  step1 ---> step2 ---+---> step3 --------+---> filter_vout ---> stall
+#                      |                   |
+#                      +---> filter_vdiff  +---> printer
 #
 step1.link(step2)
-step1.link(viewer_in)
-step1.link(viewer_pre)
 step2.link(step3)
-step2.link(viewer_diff)
-#step3.link(viewer_out)
-step3.link(filter)
+step2.link(filter_vdiff)
+step3.link(filter_vout)
 step3.link(printer)
-filter.link(stall)
+filter_vout.link(stall)
 pipe = mpipe.Pipeline(step1)
 
+# Create an auxiliary pipeline that simply pulls results from
+# the image processing pipeline, and deallocates the shared
+# memory associated with pulled timestamps. 
 def pull(tstamp):
     prev = None
     for tstamp in pipe.results():
@@ -210,9 +175,11 @@ def pull(tstamp):
             del common[prev]
         prev = tstamp
     del common[prev]
-pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(pull))
-pipe2.put(True)
+pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
+pipe_pull.put(True)
 
+# Run the video capture loop, allocating shared memory
+# and feeding the image processing pipeline.
 now = datetime.datetime.now()
 end = now + datetime.timedelta(seconds=DURATION)
 while end > now:
@@ -245,10 +212,14 @@ while end > now:
         }
     pipe.put(now)
 
+# Send the "stop" task to all pipelines.
 pipe.put(None)
-pipe2.put(None)
-pipe3.put(None)
-for result in pipe2.results():
+pipe_pull.put(None)
+pipe_vdiff.put(None)
+pipe_vout.put(None)
+
+# Wait until the pull pipeline processes all it's tasks.
+for result in pipe_pull.results():
     pass
 
 # The end.
