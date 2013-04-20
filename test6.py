@@ -23,11 +23,6 @@ ALPHA_MULTS = map(float, sys.argv[5:])  # Values in range [0.0, 1.0].
 if not ALPHA_MULTS:
     ALPHA_MULTS = [1.0,]
 
-# Create the OpenCV video capture object.
-cap = cv2.VideoCapture(DEVICE)
-cap.set(3, WIDTH)
-cap.set(4, HEIGHT)
-
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory and other useful values.
 manager = multiprocessing.Manager()
@@ -61,7 +56,7 @@ class Step1Worker(mpipe.OrderedWorker):
 
         iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
         return tstamp
-
+ 
 
 class Step2Worker(mpipe.OrderedWorker):
     """Second step of image processing."""
@@ -74,10 +69,22 @@ class Step2Worker(mpipe.OrderedWorker):
         """Compute difference between given image and accumulation,
         then accumulate and set result with the difference. 
         Initialize accumulation if needed (if opacity is 100%.)"""
-        
+
         image_pre = common[tstamp]['image_pre']
         alpha = common[tstamp]['alpha']
         
+        # Allocate shared memory for the diff image.
+        image_in = common[tstamp]['image_in']
+        shape = np.shape(image_in)
+        dtype = image_in.dtype
+        image_diff = sharedmem.empty(shape[:2], dtype)
+
+        # Add memory references to the table
+        # (reassigning modified object to proxy container.)
+        itstamp = forked[self._alpha_mult][tstamp]
+        itstamp['image_diff'] = image_diff
+        forked[self._alpha_mult][tstamp] = itstamp
+
         # Initalize accumulation if so indicated.
         if alpha == 1.0:
             self._image_acc = np.empty(np.shape(image_pre))
@@ -86,7 +93,7 @@ class Step2Worker(mpipe.OrderedWorker):
         cv2.absdiff(
             self._image_acc.astype(image_pre.dtype),
             image_pre,
-            forked[self._alpha_mult][tstamp]['image_diff'],
+            image_diff,
             )
 
         self.putResult(tstamp)
@@ -98,6 +105,7 @@ class Step2Worker(mpipe.OrderedWorker):
             alpha * self._alpha_mult,
             )
 
+
 class Step3Worker(mpipe.OrderedWorker):
     """Third step of image processing."""
 
@@ -106,10 +114,27 @@ class Step3Worker(mpipe.OrderedWorker):
 
     def doTask(self, tstamp):
         """Postprocess image using given difference."""
+
+        # Allocate shared memory for the resulting output image.
+        image_in = common[tstamp]['image_in']
+        shape = np.shape(image_in)
+        dtype = image_in.dtype
+        image_out = sharedmem.empty(shape, dtype)
+
+        # Copy the input image to the output image memory.
+        image_out[:] = image_in.copy()
+
+        # Add memory reference to the table.
+        # (reassigning modified object to proxy container.)
+        itstamp = forked[self._alpha_mult][tstamp]
+        itstamp['image_out'] = image_out
+        forked[self._alpha_mult][tstamp] = itstamp
+
+        # Postprocess the output image.
         iproc.postprocess(
-            forked[self._alpha_mult][tstamp]['image_out'], 
+            image_out,
             forked[self._alpha_mult][tstamp]['image_diff'],
-            forked[self._alpha_mult][tstamp]['image_out'], 
+            image_out,
             )
         return tstamp
 
@@ -123,7 +148,7 @@ class Viewer(mpipe.OrderedWorker):
 
     def doTask(self, tstamp):
         try:
-            win_name = '%s-%s'%(self._image_name, self._alpha_mult)
+            win_name = '%s alpha x %s'%(self._image_name, self._alpha_mult)
             cv2.namedWindow(win_name, cv2.cv.CV_WINDOW_NORMAL)
             image = forked[self._alpha_mult][tstamp][self._image_name]
             cv2.imshow(win_name, image)
@@ -213,6 +238,11 @@ def pull(task):
 pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
 pipe_pull.put(True)  # Start it up right away.
 
+# Create the OpenCV video capture object.
+cap = cv2.VideoCapture(DEVICE)
+cap.set(3, WIDTH)
+cap.set(4, HEIGHT)
+
 # Run the video capture loop, allocating shared memory
 # and feeding the image processing pipeline.
 now = datetime.datetime.now()
@@ -243,23 +273,10 @@ while end > now:
         'alpha'      : 1.0,        # Alpha value.
         }
 
-    # Allocate memory for the different alpha multipliers,
-    # and add their references to the tables.
+    # Initialize dictionaries that will hold allocated memory
+    # for the different alpha multipliers.
     for mult in ALPHA_MULTS:
-
-        # Allocate shared memory for the diff image,
-        # and the resulting output image.
-        image_diff = sharedmem.empty(shape[:2], dtype)
-        image_out  = sharedmem.empty(shape,     dtype)
-
-        # Copy the input image to the eventual output image memory.
-        image_out[:] = image.copy()
-
-        # Add memory references to the table.
-        forked[mult][now] = {
-            'image_diff' : image_diff,  # Difference image.
-            'image_out'  : image_out,   # Augmented output image.
-            }
+        forked[mult][now] = dict()
 
     # Put the timestamp on the image processing pipeline.
     pipe_iproc.put(now)
