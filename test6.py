@@ -18,7 +18,7 @@ DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
 HEIGHT   = int(sys.argv[3])
 DURATION = float(sys.argv[4])  # In seconds.
-ALPHA_MULTS = map(float, sys.argv[5:])
+ALPHA_MULTS = map(float, sys.argv[5:])  # Values in range [0.0, 1.0].
 
 if not ALPHA_MULTS:
     ALPHA_MULTS = [1.0,]
@@ -46,7 +46,7 @@ tstamp_prev = None
 def step1(tstamp):
     """Return preprocessed image."""
     global tstamp_prev
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev, 1)
+    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
     
     # Reassign the modified object to the proxy container in order to
     # notify manager that the mutable value (the dictionary) has changed. See for details:
@@ -145,22 +145,25 @@ def printStatus(tstamp):
     print('%05.3f, %05.3f, %05.3f'%framerate.tick())
     return tstamp
 
-# Create the first image processing stage 
-# and the downstream printer.
-step1 = mpipe.OrderedStage(step1)
-printer = mpipe.OrderedStage(printStatus)
-
-# Link the first stages:
+# Create the starting image processing stage, and the single
+# downstream printer, and link them up:
 #
 #    step1 ---> printer
 #
+step1 = mpipe.OrderedStage(step1)
+printer = mpipe.OrderedStage(printStatus)
 step1.link(printer)
 
-view_pipes = list()
-
+# Create the 
+view_pipes = list()  # Keep a list of viewer sub-pipes.
 for mult in ALPHA_MULTS:
 
-    # Create the two viewer pipelines.
+    # Create the downstream image processing stages.
+    step2 = mpipe.Stage(Step2Worker, size=1, alpha_mult=mult)
+    step3 = mpipe.Stage(Step3Worker, size=1, alpha_mult=mult)
+
+    # Create the two viewer pipelines. These will be "wrapped" 
+    # in frame-dropping filters to eliminate bottlenecks.
     pipe_vout = mpipe.Pipeline(
         mpipe.Stage(Viewer, 1, alpha_mult=mult, image_name='image_out'))
     pipe_vdiff = mpipe.Pipeline(
@@ -168,11 +171,7 @@ for mult in ALPHA_MULTS:
     view_pipes.append(pipe_vout)
     view_pipes.append(pipe_vdiff)
 
-    # Create the downstream image processing stages.
-    step2 = mpipe.Stage(Step2Worker, size=1, alpha_mult=mult)
-    step3 = mpipe.Stage(Step3Worker, size=1, alpha_mult=mult)
-
-    # Create the other, downstream stages.
+    # Create the other stages, further downstream.
     filter_vdiff = mpipe.FilterStage(pipe_vdiff)
     filter_vout = mpipe.FilterStage(pipe_vout)
     stall = mpipe.Stage(Staller)
@@ -197,20 +196,14 @@ for mult in ALPHA_MULTS:
 # Finally, create the image processing pipeline.
 pipe_iproc = mpipe.Pipeline(step1)
 
-# Create an auxiliary pipeline that simply pulls results from
-# the image processing pipeline, and deallocates the shared
-# memory associated with pulled timestamps. 
-def pull(tstamp):
-    prev = None
+# Create an auxiliary process (modeled as a one-task pipeline)
+# that simply pulls results from the image processing pipeline, 
+# and deallocates the associated shared memory.
+def pull(task):
     for tstamp in pipe_iproc.results():
-        if prev is not None:
-            del common[prev]
-            for mult in ALPHA_MULTS:
-                del forked[mult][prev]
-        prev = tstamp
-    del common[prev]
-    for mult in ALPHA_MULTS:
-        del forked[mult][prev]
+        del common[tstamp]
+        for mult in ALPHA_MULTS:
+            del forked[mult][tstamp]
 pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
 pipe_pull.put(True)  # Start it up right away.
 
@@ -219,12 +212,16 @@ pipe_pull.put(True)  # Start it up right away.
 now = datetime.datetime.now()
 end = now + datetime.timedelta(seconds=DURATION)
 while end > now:
+
+    # Mark the timestamp. This is the index by which 
+    # image procesing stages will access allocated memory.
     now = datetime.datetime.now()
+
+    # Capture the image.
     hello, image = cap.read()
 
-    # Allocate shared memory for
-    #   a copy of the input image,
-    #   the preprocessed image.
+    # Allocate shared memory for a copy of the input image,
+    # and for the preprocessed image.
     shape = np.shape(image)
     dtype = image.dtype
     image_in   = sharedmem.empty(shape,     dtype)
@@ -235,17 +232,17 @@ while end > now:
     
     # Add shared memory (references) to the common table.
     common[now] = {
-        'image_in'   : image_in,
-        'image_pre'  : image_pre,
-        'alpha'      : 1.0,
+        'image_in'   : image_in,   # Input image.
+        'image_pre'  : image_pre,  # Preprocessed image.
+        'alpha'      : 1.0,        # Alpha value.
         }
 
     # Allocate memory for the different alpha multipliers,
     # and add their references to the tables.
     for mult in ALPHA_MULTS:
-        # Allocate shared memory for
-        #   the diff image,
-        #   the resulting output image.
+
+        # Allocate shared memory for the diff image,
+        # and the resulting output image.
         image_diff = sharedmem.empty(shape[:2], dtype)
         image_out  = sharedmem.empty(shape,     dtype)
 
@@ -254,20 +251,22 @@ while end > now:
 
         # Add memory references to the table.
         forked[mult][now] = {
-            'image_diff' : image_diff,
-            'image_out'  : image_out,
+            'image_diff' : image_diff,  # Difference image.
+            'image_out'  : image_out,   # Augmented output image.
             }
 
     # Put the timestamp on the image processing pipeline.
     pipe_iproc.put(now)
 
-# Send the "stop" task to all pipelines.
+# Capturing of video is done. Now let's shut down all
+# pipelines by sending them the "stop" task.
 pipe_iproc.put(None)
 pipe_pull.put(None)
 for pipe in view_pipes:
     pipe.put(None)
 
-# Wait until the pull pipeline processes all it's tasks.
+# Before exiting, wait until the pull pipeline is done
+# so that all shared memory is deallocated.
 for result in pipe_pull.results():
     pass
 
