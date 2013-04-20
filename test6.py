@@ -40,26 +40,31 @@ forked = dict()
 for mult in ALPHA_MULTS:
     forked[mult] = manager.dict()
 
-# Keep track of previous iteration's timestamp.
-tstamp_prev = None  
 
-def step1(tstamp):
-    """Return preprocessed image."""
-    global tstamp_prev
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
+class Step1Worker(mpipe.OrderedWorker):
+    """First step of image processing."""
+
+    def __init__(self):
+        # Keep track of previous iteration's timestamp.
+        self._prev_tstamp = None 
+
+    def doTask(self, tstamp):
+        """Return preprocessed image."""
+        alpha, self._prev_tstamp = iproc.getAlpha(self._prev_tstamp)
     
-    # Reassign the modified object to the proxy container in order to
-    # notify manager that the mutable value (the dictionary) has changed. See for details:
-    # http://docs.python.org/library/multiprocessing.html#multiprocessing.managers.SyncManager.list
-    itstamp = common[tstamp]
-    itstamp['alpha'] = alpha
-    common[tstamp] = itstamp  # Reassign modified object to proxy.
+        # Reassign the modified object to the proxy container in order to
+        # notify manager that the mutable value (the dictionary) has changed. See for details:
+        # http://docs.python.org/library/multiprocessing.html#multiprocessing.managers.SyncManager.list
+        itstamp = common[tstamp]
+        itstamp['alpha'] = alpha
+        common[tstamp] = itstamp  # Reassign modified object to proxy.
 
-    iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
-    return tstamp
- 
+        iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
+        return tstamp
+
 
 class Step2Worker(mpipe.OrderedWorker):
+    """Second step of image processing."""
 
     def __init__(self, alpha_mult):
         self._alpha_mult = alpha_mult  # Alpha multiplier.
@@ -94,6 +99,7 @@ class Step2Worker(mpipe.OrderedWorker):
             )
 
 class Step3Worker(mpipe.OrderedWorker):
+    """Third step of image processing."""
 
     def __init__(self, alpha_mult):
         self._alpha_mult = alpha_mult  # Alpha multiplier.
@@ -150,7 +156,7 @@ def printStatus(tstamp):
 #
 #    step1 ---> printer
 #
-step1 = mpipe.OrderedStage(step1)
+step1 = mpipe.Stage(Step1Worker)
 printer = mpipe.OrderedStage(printStatus)
 step1.link(printer)
 
