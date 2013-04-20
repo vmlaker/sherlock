@@ -48,7 +48,7 @@ def preprocess2(image_in):
         )
     return image_out
 
-def postprocess(image, image_diff, image_out=None):
+def postprocess(image, image_diff, image_out=None, rect=False):
     """Augment given image with given difference.
     Operate inplace on image, unless given output image."""
 
@@ -101,14 +101,15 @@ def postprocess(image, image_diff, image_out=None):
         )
 
     # Augment output image with rectangles.
-    for contour in filtered:
-        x,y,w,h = cv2.boundingRect(contour)
-        cv2.rectangle(
-            image_out,
-            (x,y),
-            (x+w,y+h),
-            color=(0, 255, 0),
-            thickness=2,
-            )
+    if rect: 
+        for contour in filtered:
+            x,y,w,h = cv2.boundingRect(contour)
+            cv2.rectangle(
+                image_out,
+                (x,y),
+                (x+w,y+h),
+                color=(0, 255, 0),
+                thickness=2,
+                )
 
 # The end.
