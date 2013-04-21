@@ -1,6 +1,6 @@
 """Multiprocess image processing using shared memory. 
 Use frame dropping filter for output viewer.
-Use more than one alpha multiplier."""
+Use more than one alpha age."""
 
 import multiprocessing
 import datetime
@@ -18,42 +18,28 @@ DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
 HEIGHT   = int(sys.argv[3])
 DURATION = float(sys.argv[4])  # In seconds.
-ALPHA_MULTS = map(float, sys.argv[5:])  # Values in range [0.0, 1.0].
+ALPHA_AGES = map(float, sys.argv[5:])  # Values in range [0.0, 1.0].
 
-if not ALPHA_MULTS:
-    ALPHA_MULTS = [1.0,]
+if not ALPHA_AGES:
+    ALPHA_AGES = [1.0,]
 
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory and other useful values.
 manager = multiprocessing.Manager()
 common = manager.dict()
 
-# Create process-shared tables for each alpha multiplier.
+# Create process-shared tables for each alpha age.
 # These hold allocated memory for diff and output images
-# corresponding to the particular alpha multiplier.
+# corresponding to the particular alpha age.
 forked = dict()
-for mult in ALPHA_MULTS:
+for mult in ALPHA_AGES:
     forked[mult] = manager.dict()
 
 
 class Step1Worker(mpipe.OrderedWorker):
     """First step of image processing."""
-
-    def __init__(self):
-        # Keep track of previous iteration's timestamp.
-        self._prev_tstamp = None 
-
     def doTask(self, tstamp):
         """Return preprocessed image."""
-        alpha, self._prev_tstamp = iproc.getAlpha(self._prev_tstamp)
-    
-        # Reassign the modified object to the proxy container in order to
-        # notify manager that the mutable value (the dictionary) has changed. See for details:
-        # http://docs.python.org/library/multiprocessing.html#multiprocessing.managers.SyncManager.list
-        itstamp = common[tstamp]
-        itstamp['alpha'] = alpha
-        common[tstamp] = itstamp  # Reassign modified object to proxy.
-
         iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
         return tstamp
  
@@ -61,17 +47,18 @@ class Step1Worker(mpipe.OrderedWorker):
 class Step2Worker(mpipe.OrderedWorker):
     """Second step of image processing."""
 
-    def __init__(self, alpha_mult):
-        self._alpha_mult = alpha_mult  # Alpha multiplier.
+    def __init__(self, alpha_age):
+        self._alpha_age = alpha_age  # Alpha age.
         self._image_acc = None  # Accumulation of thresholded differences.
+        self._prev_tstamp = None
 
     def doTask(self, tstamp):
         """Compute difference between given image and accumulation,
         then accumulate and set result with the difference. 
         Initialize accumulation if needed (if opacity is 100%.)"""
 
+        alpha, self._prev_tstamp = iproc.getAlpha(self._prev_tstamp, self._alpha_age)
         image_pre = common[tstamp]['image_pre']
-        alpha = common[tstamp]['alpha']
         
         # Allocate shared memory for the diff image.
         image_in = common[tstamp]['image_in']
@@ -80,13 +67,15 @@ class Step2Worker(mpipe.OrderedWorker):
         image_diff = sharedmem.empty(shape[:2], dtype)
 
         # Add memory references to the table
-        # (reassigning modified object to proxy container.)
-        itstamp = forked[self._alpha_mult][tstamp]
+        # Reassign the modified object to the proxy container in order to
+        # notify manager that the mutable value (the dictionary) has changed. See for details:
+        # http://docs.python.org/library/multiprocessing.html#multiprocessing.managers.SyncManager.list
+        itstamp = forked[self._alpha_age][tstamp]
         itstamp['image_diff'] = image_diff
-        forked[self._alpha_mult][tstamp] = itstamp
+        forked[self._alpha_age][tstamp] = itstamp
 
         # Initalize accumulation if so indicated.
-        if alpha == 1.0:
+        if self._image_acc is None:
             self._image_acc = np.empty(np.shape(image_pre))
 
         # Compute difference.
@@ -102,15 +91,15 @@ class Step2Worker(mpipe.OrderedWorker):
         hello = cv2.accumulateWeighted(
             image_pre,
             self._image_acc,
-            alpha * self._alpha_mult,
+            alpha,
             )
 
 
 class Step3Worker(mpipe.OrderedWorker):
     """Third step of image processing."""
 
-    def __init__(self, alpha_mult):
-        self._alpha_mult = alpha_mult  # Alpha multiplier.
+    def __init__(self, alpha_age):
+        self._alpha_age = alpha_age  # Alpha age.
 
     def doTask(self, tstamp):
         """Postprocess image using given difference."""
@@ -126,14 +115,14 @@ class Step3Worker(mpipe.OrderedWorker):
 
         # Add memory reference to the table.
         # (reassigning modified object to proxy container.)
-        itstamp = forked[self._alpha_mult][tstamp]
+        itstamp = forked[self._alpha_age][tstamp]
         itstamp['image_out'] = image_out
-        forked[self._alpha_mult][tstamp] = itstamp
+        forked[self._alpha_age][tstamp] = itstamp
 
         # Postprocess the output image.
         iproc.postprocess(
             image_out,
-            forked[self._alpha_mult][tstamp]['image_diff'],
+            forked[self._alpha_age][tstamp]['image_diff'],
             image_out,
             )
         return tstamp
@@ -141,16 +130,16 @@ class Step3Worker(mpipe.OrderedWorker):
 class Viewer(mpipe.OrderedWorker):
     """Displays image in a window."""
 
-    def __init__(self, alpha_mult, image_name):
+    def __init__(self, alpha_age, image_name):
         """Initialize object with name of image."""
-        self._alpha_mult = alpha_mult  # Alpha multiplier.
+        self._alpha_age = alpha_age  # Alpha age.
         self._image_name = image_name
 
     def doTask(self, tstamp):
         try:
-            win_name = '%s alpha x %s'%(self._image_name, self._alpha_mult)
+            win_name = '%s  (alpha age=%ss)'%(self._image_name, self._alpha_age)
             cv2.namedWindow(win_name, cv2.cv.CV_WINDOW_NORMAL)
-            image = forked[self._alpha_mult][tstamp][self._image_name]
+            image = forked[self._alpha_age][tstamp][self._image_name]
             cv2.imshow(win_name, image)
             cv2.waitKey(1)
         except:
@@ -187,18 +176,18 @@ step1.link(printer)
 
 # Create the 
 view_pipes = list()  # Keep a list of viewer sub-pipes.
-for mult in ALPHA_MULTS:
+for age in ALPHA_AGES:
 
     # Create the downstream image processing stages.
-    step2 = mpipe.Stage(Step2Worker, size=1, alpha_mult=mult)
-    step3 = mpipe.Stage(Step3Worker, size=1, alpha_mult=mult)
+    step2 = mpipe.Stage(Step2Worker, size=1, alpha_age=age)
+    step3 = mpipe.Stage(Step3Worker, size=1, alpha_age=age)
 
     # Create the two viewer pipelines. These will be "wrapped" 
     # in frame-dropping filters to eliminate bottlenecks.
     pipe_vout = mpipe.Pipeline(
-        mpipe.Stage(Viewer, 1, alpha_mult=mult, image_name='image_out'))
+        mpipe.Stage(Viewer, 1, alpha_age=age, image_name='image_out'))
     pipe_vdiff = mpipe.Pipeline(
-        mpipe.Stage(Viewer, 1, alpha_mult=mult, image_name='image_diff'))
+        mpipe.Stage(Viewer, 1, alpha_age=age, image_name='image_diff'))
     view_pipes.append(pipe_vout)
     view_pipes.append(pipe_vdiff)
 
@@ -233,8 +222,8 @@ pipe_iproc = mpipe.Pipeline(step1)
 def pull(task):
     for tstamp in pipe_iproc.results():
         del common[tstamp]
-        for mult in ALPHA_MULTS:
-            del forked[mult][tstamp]
+        for age in ALPHA_AGES:
+            del forked[age][tstamp]
 pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
 pipe_pull.put(True)  # Start it up right away.
 
@@ -270,13 +259,12 @@ while end > now:
     common[now] = {
         'image_in'   : image_in,   # Input image.
         'image_pre'  : image_pre,  # Preprocessed image.
-        'alpha'      : 1.0,        # Alpha value.
         }
 
     # Initialize dictionaries that will hold allocated memory
-    # for the different alpha multipliers.
-    for mult in ALPHA_MULTS:
-        forked[mult][now] = dict()
+    # for the different alpha ages.
+    for age in ALPHA_AGES:
+        forked[age][now] = dict()
 
     # Put the timestamp on the image processing pipeline.
     pipe_iproc.put(now)
