@@ -17,6 +17,7 @@ def getAlpha(tstamp_prev, max_life=1.0):
     now = datetime.datetime.now()
     alpha = 1.0  # Default is 100% opacity.
     if tstamp_prev:
+        # alpha = min {delta_t, max_life} / max_life        
         tdelta = now - tstamp_prev
         alpha = tdelta.total_seconds()
         alpha = min(alpha, float(max_life))
@@ -48,17 +49,33 @@ def preprocess2(image_in):
         )
     return image_out
 
+def threshold(image_in, image_out=None):
+
+    # Apply threshold.
+    hello, image_out = cv2.threshold(
+        image_in,
+        thresh=35,
+        maxval=255,
+        type=cv2.THRESH_BINARY,
+        dst=image_out,
+        )
+    
+    if 0: image_out = cv2.adaptiveThreshold(
+        image_in,
+        maxValue=255,
+        adaptiveMethod=cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        thresholdType=cv2.THRESH_BINARY,
+        blockSize=7,
+        C=4,
+        dst=image_out
+        )
+    return image_out
+    
 def postprocess(image, image_diff, image_out=None, rect=False):
     """Augment given image with given difference.
     Operate inplace on image, unless given output image."""
 
-    # Apply threshold.
-    hello, image_thresh = cv2.threshold(
-        image_diff,
-        thresh=35,
-        maxval=255,
-        type=cv2.THRESH_BINARY,
-        )
+    image_thresh = threshold(image_diff)
 
     # Find contours.
     contours, hier = cv2.findContours(
@@ -96,7 +113,7 @@ def postprocess(image, image_diff, image_out=None, rect=False):
         image_out,
         filtered,
         -1,
-        color=(0, 255, 255),  # Yellow.
+        color=(63, 200, 63),  # Green.
         thickness=2,
         )
 
