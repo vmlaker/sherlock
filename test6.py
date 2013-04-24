@@ -192,8 +192,8 @@ for age in ALPHA_AGES:
     view_pipes.append(pipe_vdiff)
 
     # Create the other stages, further downstream.
-    filter_vdiff = mpipe.FilterStage(pipe_vdiff)
-    filter_vout = mpipe.FilterStage(pipe_vout)
+    filter_vdiff = mpipe.FilterStage((pipe_vdiff,), drop_results=True)
+    filter_vout = mpipe.FilterStage((pipe_vout,), drop_results=True)
     stall = mpipe.Stage(Staller)
 
     # Link the stages together:

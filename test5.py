@@ -137,8 +137,8 @@ step2 = mpipe.Stage(Step2Worker, size=1, alpha_mult=0.50)
 step3 = mpipe.OrderedStage(step3)
 
 # Create the other, downstream stages.
-filter_vdiff = mpipe.FilterStage(pipe_vdiff)
-filter_vout = mpipe.FilterStage(pipe_vout)
+filter_vdiff = mpipe.FilterStage((pipe_vdiff,), drop_results=True)
+filter_vout = mpipe.FilterStage((pipe_vout,), drop_results=True)
 stall = mpipe.OrderedStage(stall)
 printer = mpipe.OrderedStage(printStatus)
 
