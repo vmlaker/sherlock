@@ -11,6 +11,7 @@ import sharedmem
 import mpipe
 import util
 import iproc
+import cascade
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -31,8 +32,9 @@ class Preprocessor(mpipe.OrderedWorker):
  
 class Detector(mpipe.OrderedWorker):
     """Detects faces."""
-    def __init__(self, cascade):
-        self._classifier = cv2.CascadeClassifier(cascade)
+    def __init__(self, classifier, color):
+        self._classifier = classifier
+        self._color = color
 
     def doTask(self, tstamp):
         """Run face detection."""
@@ -44,14 +46,12 @@ class Detector(mpipe.OrderedWorker):
                 image,
                 scaleFactor=1.3,#2,
                 minNeighbors=3, #4
-                #minSize=(40, 40), 
                 minSize=tuple([x/20 for x in size]),
-                #maxSize=(100, 100), 
                 maxSize=tuple([x/2 for x in size]),
                 )
             if len(r):
                 for a,b,c,d  in r:
-                    rects.append((a,b,c,d))
+                    rects.append((a,b,c,d, self._color))
         except:
             print('Error in detector!!!!!!!!!!!!')
 
@@ -66,11 +66,11 @@ class Postprocessor(mpipe.OrderedWorker):
         if not rects:
             rects = self._prev_rects
         rects = [item for sublist in rects for item in sublist]
-        for x1, y1, x2, y2 in rects:
+        for x1, y1, x2, y2, color in rects:
             cv2.rectangle(
                 common[tstamp]['image_in'],
                 (x1, y1), (x1+x2, y1+y2), 
-                color=(0, 255, 0),
+                color=color,
                 thickness=2,
                 )
         self._prev_rects = rects
@@ -82,7 +82,7 @@ class Viewer(mpipe.OrderedWorker):
     def doTask(self, tstamp):
         try:
             win_name = 'face detection'
-            cv2.namedWindow(win_name, cv2.cv.CV_WINDOW_NORMAL)
+            #cv2.namedWindow(win_name, cv2.cv.CV_WINDOW_NORMAL)
             image = common[tstamp]['image_in']
             cv2.imshow(win_name, image)
             cv2.waitKey(1)
@@ -110,50 +110,22 @@ def printStatus(tstamp):
     return tstamp
 
 detector_pipes = list()
-for cfile in (
-
-    # Face cascades:
-    #'/usr/share/OpenCV/haarcascades/haarcascade_frontalface_alt2.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_frontalface_alt_tree.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_frontalface_alt.xml',
-    '/usr/share/OpenCV/haarcascades/haarcascade_frontalface_default.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_profileface.xml',
-
-    # Ear, mouth, nose cascades:
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_leftear.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_mouth.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_nose.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_rightear.xml',
-
-    # Eye cascades:
-    #'/usr/share/OpenCV/haarcascades/haarcascade_eye_tree_eyeglasses.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_eye.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_lefteye_2splits.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_righteye_2splits.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_eyepair_big.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_eyepair_small.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_lefteye.xml',
-    # '/usr/share/OpenCV/haarcascades/haarcascade_mcs_righteye.xml',
-
-    # Body cascades:
-    #'/usr/share/OpenCV/haarcascades/haarcascade_fullbody.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_lowerbody.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_mcs_upperbody.xml',
-    #'/usr/share/OpenCV/haarcascades/haarcascade_upperbody.xml',
-
-    ):
+for classi in cascade.classifiers:
     detector_pipes.append(
         mpipe.Pipeline(
             mpipe.Stage(
-                Detector, 1, cascade=cfile)))
+                Detector, 1, 
+                classifier=classi, 
+                color=cascade.colors[classi])))
+
 
 # Create the image processing pipeline:
 #
-#              detector_pipe(s)                 viewer
-#                    ||                           ||
-#   preproc --+--> detector --> postproc --> filter_viewer --> staller
-#             |
-#             +--> printer
+#            detector_pipe(s)                   viewer
+#                  ||                             ||
+#   preproc --> detector --> postproc --+--> filter_viewer --> staller
+#                                          |
+#                                          +--> printer
 #
 preproc = mpipe.Stage(Preprocessor)
 printer = mpipe.OrderedStage(printStatus)
@@ -162,10 +134,10 @@ postproc = mpipe.Stage(Postprocessor)
 pipe_viewer = mpipe.Pipeline(mpipe.Stage(Viewer))
 filter_viewer = mpipe.FilterStage((pipe_viewer,), max_tasks=2)
 staller = mpipe.Stage(Staller)
-preproc.link(printer)
 preproc.link(detector)
 detector.link(postproc)
 postproc.link(filter_viewer)
+postproc.link(printer)
 filter_viewer.link(staller)
 pipe_iproc = mpipe.Pipeline(preproc)
 
