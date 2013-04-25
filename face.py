@@ -57,6 +57,9 @@ class Detector(mpipe.OrderedWorker):
             print('Error in detector !!!')
         return result
 
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
+
 class Postprocessor(mpipe.OrderedWorker):
     def doTask(self, (tstamp, rects,)):
         # Make a flat list from a list of lists .
@@ -66,6 +69,21 @@ class Postprocessor(mpipe.OrderedWorker):
                 common[tstamp]['image_in'],
                 (x1, y1), (x1+x2, y1+y2),
                 color=color,
+                thickness=2,
+                )
+        size = np.shape(common[tstamp]['image_in'])[:2]
+        scale = 0.85
+        for org, text in (
+            ((20, int(30*scale)), '%dx%d'%(size[1], size[0])),
+            ((20, int(60*scale)), '%.2f, %.2f, %.2f'%framerate.tick()),
+            ):
+            cv2.putText(
+                common[tstamp]['image_in'],
+                text=text,
+                org=org,
+                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale=scale,
+                color=(0,255,0),
                 thickness=2,
                 )
         return tstamp
@@ -92,14 +110,6 @@ class Staller(mpipe.OrderedWorker):
             time.sleep(duration.total_seconds())
         return tstamp
 
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
-def printStatus(tstamp):
-    """Print the framerate to stdout."""
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
-    return tstamp
-
 # Create the detector pipelines.
 detector_pipes = list()
 for classi in cascade.classifiers:
@@ -115,20 +125,16 @@ for classi in cascade.classifiers:
 #            detector_pipe(s)                   viewer
 #                  ||                             ||
 #   preproc --> detector --> postproc --+--> filter_viewer --> staller
-#                                       |
-#                                       +--> printer
 #
 preproc = mpipe.Stage(Preprocessor)
 detector = mpipe.FilterStage(detector_pipes, max_tasks=1)
 postproc = mpipe.Stage(Postprocessor)
-printer = mpipe.OrderedStage(printStatus)
 pipe_viewer = mpipe.Pipeline(mpipe.Stage(Viewer))
 filter_viewer = mpipe.FilterStage((pipe_viewer,), max_tasks=2)
 staller = mpipe.Stage(Staller)
 preproc.link(detector)
 detector.link(postproc)
 postproc.link(filter_viewer)
-postproc.link(printer)
 filter_viewer.link(staller)
 pipe_iproc = mpipe.Pipeline(preproc)
 
