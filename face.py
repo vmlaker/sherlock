@@ -27,7 +27,8 @@ class Preprocessor(mpipe.OrderedWorker):
     """First step of image processing."""
     def doTask(self, tstamp):
         """Return preprocessed image."""
-        iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
+        iproc.preprocess(
+            common[tstamp]['image_in'], common[tstamp]['image_pre'])
         return tstamp
  
 class Detector(mpipe.OrderedWorker):
@@ -38,58 +39,48 @@ class Detector(mpipe.OrderedWorker):
 
     def doTask(self, tstamp):
         """Run face detection."""
+        result = list()
         try:
             image = common[tstamp]['image_pre']
             size = np.shape(image)[:2]
-            rects = list()
-            r = self._classifier.detectMultiScale(
+            rects = self._classifier.detectMultiScale(
                 image,
-                scaleFactor=1.3,#2,
-                minNeighbors=3, #4
+                scaleFactor=1.3,
+                minNeighbors=3,
                 minSize=tuple([x/20 for x in size]),
                 maxSize=tuple([x/2 for x in size]),
                 )
-            if len(r):
-                for a,b,c,d  in r:
-                    rects.append((a,b,c,d, self._color))
+            if len(rects):
+                for a,b,c,d in rects:
+                    result.append((a,b,c,d, self._color))
         except:
-            print('Error in detector!!!!!!!!!!!!')
-
-        return rects
-
+            print('Error in detector !!!')
+        return result
 
 class Postprocessor(mpipe.OrderedWorker):
-    def __init__(self):
-        self._prev_rects = list()
-
     def doTask(self, (tstamp, rects,)):
-        if not rects:
-            rects = self._prev_rects
+        # Make a flat list from a list of lists .
         rects = [item for sublist in rects for item in sublist]
         for x1, y1, x2, y2, color in rects:
             cv2.rectangle(
                 common[tstamp]['image_in'],
-                (x1, y1), (x1+x2, y1+y2), 
+                (x1, y1), (x1+x2, y1+y2),
                 color=color,
                 thickness=2,
                 )
-        self._prev_rects = rects
         return tstamp
-        
 
+cv2.namedWindow('face detection', cv2.cv.CV_WINDOW_NORMAL)
 class Viewer(mpipe.OrderedWorker):
     """Displays image in a window."""
     def doTask(self, tstamp):
         try:
-            win_name = 'face detection'
-            #cv2.namedWindow(win_name, cv2.cv.CV_WINDOW_NORMAL)
             image = common[tstamp]['image_in']
-            cv2.imshow(win_name, image)
+            cv2.imshow('face detection', image)
             cv2.waitKey(1)
         except:
-            print('error running viewer %s !!!')
+            print('Error in viewer !!!')
         return tstamp
-
 
 class Staller(mpipe.OrderedWorker):
     def doTask(self, (tstamp, results,)):
@@ -109,6 +100,7 @@ def printStatus(tstamp):
     print('%05.3f, %05.3f, %05.3f'%framerate.tick())
     return tstamp
 
+# Create the detector pipelines.
 detector_pipes = list()
 for classi in cascade.classifiers:
     detector_pipes.append(
@@ -118,19 +110,18 @@ for classi in cascade.classifiers:
                 classifier=classi, 
                 color=cascade.colors[classi])))
 
-
-# Create the image processing pipeline:
+# Assemble the image processing pipeline:
 #
 #            detector_pipe(s)                   viewer
 #                  ||                             ||
 #   preproc --> detector --> postproc --+--> filter_viewer --> staller
-#                                          |
-#                                          +--> printer
+#                                       |
+#                                       +--> printer
 #
 preproc = mpipe.Stage(Preprocessor)
-printer = mpipe.OrderedStage(printStatus)
 detector = mpipe.FilterStage(detector_pipes, max_tasks=1)
 postproc = mpipe.Stage(Postprocessor)
+printer = mpipe.OrderedStage(printStatus)
 pipe_viewer = mpipe.Pipeline(mpipe.Stage(Viewer))
 filter_viewer = mpipe.FilterStage((pipe_viewer,), max_tasks=2)
 staller = mpipe.Stage(Staller)
@@ -148,8 +139,11 @@ def pull(task):
     for tstamp in pipe_iproc.results():
         del common[tstamp]
 pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
-pipe_pull.put(True)  # Start it up right away.
-pipe_pull.put(None)  # It's a single-task (startup task) pipeline.
+
+# Start it up right away. Since it's a single-task (startup task) 
+# pipeline, we can also send the "stop" task immediately.
+pipe_pull.put(True)  
+pipe_pull.put(None) 
 
 # Create the OpenCV video capture object.
 cap = cv2.VideoCapture(DEVICE)
@@ -173,15 +167,15 @@ while end > now:
     shape = np.shape(image)
     dtype = image.dtype
     image_in = sharedmem.empty(shape, dtype)
-    image_pre  = sharedmem.empty(shape[:2], dtype)
+    image_pre = sharedmem.empty(shape[:2], dtype)
 
     # Copy the input image to its shared memory version.
     image_in[:] = image.copy()
     
     # Add to the common table.
     common[now] = {
-        'image_in'   : image_in,   # Input image.
-        'image_pre'  : image_pre,  # Preprocessed image.
+        'image_in'  : image_in,   # Input image.
+        'image_pre' : image_pre,  # Preprocessed image.
         }
 
     # Put the timestamp on the image processing pipeline.
