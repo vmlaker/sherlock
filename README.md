@@ -1,20 +1,56 @@
 Sherlock
 ========
 
-A realtime image processing toolkit in Python. 
+A real-time Python image processing toolkit. 
 
-Sherlock is released as a set of example command-line Python programs which demonstrate fast image processing functionality of [OpenCV](http://opencv.org). It is a collection of test codes you see there in the root directory. Before you can run the example programs however, you gotta have the following libraries installed for your Python interpreter:
+Sherlock is released as a set of example command-line programs to demonstrate fast image processing of live video (e.g. from a webcam) using symmetric multiprocessing with shared memory, in Python.
+It is a collection of test codes. 
 
-* [OpenCV](http://opencv.org)
-* [numpy-sharedmem](http://bitbucket.org/cleemesser/numpy-sharedmem)
-* [MPipe](http://vmlaker.github.io/mpipe)
+Software dependencies
+---------------------
 
-Image processing algorithms used are found in OpenCV's [cv2 module](http://docs.opencv.org/modules/refman.html). For sharing NumPy arrays accross processors, [numpy-sharedmem](http://bitbucket.org/cleemesser/numpy-sharedmem) module is doing all the work. Multiprocessing workflow is implemented in the [MPipe pipeline framework](http://vmlaker.github.io/mpipe/concepts.html).
+Before you can run the codes, have the following libraries installed for your Python interpreter:
 
-Once you have these things installed, then you can run the examples. Like this for instance:
+### OpenCV
 
+[Open Source Computer Vision](http://opencv.org) is used for image processing (algorithms found in [``cv2``](http://docs.opencv.org/modules/refman.html) module.) 
+On a YUM system, install it with:
+```
+yum install opencv-python
+```
+or if using Aptitude, try:
+```
+aptitude install python-opencv
+```
+
+### numpy-sharedmem
+
+Images (large NumPy arrays) are efficiently accessed by multiple processes using the ``sharedmem`` module. Take a look at the [numpy-sharedmem project](http://bitbucket.org/cleemesser/numpy-sharedmem) for details.
+Install the module with:
+```
+hg clone https://cleemesser@bitbucket.org/cleemesser/numpy-sharedmem/
+cd numpy-sharedmem
+python setup.py install --user
+```
+
+### MPipe
+
+Multiprocessing workflow is implemented in the [MPipe framework](http://vmlaker.github.io/mpipe/concepts.html). 
+Install the module with:
+```
+git clone http://github.com/vmlaker/mpipe
+cd mpipe
+python setup.py install --user
+```
+
+Usage
+-----
+
+Test your OpenCV Python bindings with a simple video playback. The following displays frames captured from the first video device (i.e. ``/dev/video0``) for 5 seconds:
+```
+python playcv2.py 0 640 480 5
+```
+Now, run the first test using the following command:
 ```
 python test1.py 0 640 480 5
 ```
-
-The above runs ```test1.py``` on the first video device (i.e. /dev/video0) for 5 seconds.
