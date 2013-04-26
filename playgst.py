@@ -19,7 +19,8 @@ DURATION = float(sys.argv[5])
 framerate = util.RateTicker((1,5,10))
 
 # Create the display window.
-cv2.namedWindow('hello', cv2.cv.CV_WINDOW_NORMAL)
+title = 'playing GStreamer capture'
+cv2.namedWindow(title, cv2.cv.CV_WINDOW_NORMAL)
 
 def onVideoBuffer(pad, idata):
     """Convert buffer data and show as image."""
@@ -29,15 +30,11 @@ def onVideoBuffer(pad, idata):
         buffer=idata,
         )
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    
-    cv2.imshow('hello', image)
+    cv2.imshow(title, image)
     cv2.waitKey(1)
-    
-    # Print the framerate.
-    global framerate
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
 
-    return True
+    # Print the framerate.
+    print('%.2f, %.2f, %.2f'%framerate.tick())
 
 # Assemble the GStreamer video stream pipeline.
 specs = [

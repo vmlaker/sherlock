@@ -2,8 +2,6 @@
 
 import datetime
 import sys
-
-import numpy as np
 import cv2
 
 import util
@@ -22,17 +20,18 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the display window.
-cv2.namedWindow('hello', cv2.cv.CV_WINDOW_NORMAL)
+title = 'playing OpenCV capture'
+cv2.namedWindow(title, cv2.cv.CV_WINDOW_NORMAL)
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
 
     # Take a snapshot show it.
     hello, image = cap.read()        
-    cv2.imshow('hello', image)
+    cv2.imshow(title, image)
     cv2.waitKey(1)
     
     # Print the framerate.
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
+    print('%.2f, %.2f, %.2f'%framerate.tick())
 
 # The end.
