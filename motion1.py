@@ -1,4 +1,4 @@
-"""Single process image processing."""
+"""Simple single-process sequential image processing."""
 
 import datetime
 import sys
@@ -18,76 +18,19 @@ cap = cv2.VideoCapture(DEVICE)
 cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
-# Create the output windows.
-NAMES = (
-    'image',
-#    'image_pre', 
-#    'image_diff', 
-#    'image_thresh',
-#    'image_acc',
-    )
-for name in NAMES:
-    cv2.namedWindow(name, cv2.cv.CV_WINDOW_NORMAL)
+# Create the output window.
+cv2.namedWindow('motion 1', cv2.cv.CV_WINDOW_NORMAL)
 
-# Accumulation of thresholded differences.
+# Maintain accumulation of thresholded differences.
 image_acc = None  
-
-def step1(image):
-    """Return preprocessed image."""
-    return iproc.preprocess2(image)
- 
-def step2(image, alpha):
-    """Compute difference between given image and accumulation,
-    then accumulate and return the difference. Initialize accumulation
-    if needed (if opacity is 100%.)"""
-
-    # Use global accumulation.
-    global image_acc
-
-    # Initalize accumulation if so indicated.
-    if alpha == 1.0:
-        image_acc = np.empty(np.shape(image))
-
-    # Compute difference.
-    image_diff = cv2.absdiff(
-        image_acc.astype(image.dtype),
-        image,
-        )
-
-    # Accumulate.
-    hello = cv2.accumulateWeighted(
-        image,
-        image_acc,
-        alpha,
-        )
-
-    return image_diff
-
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
-def step3(image, image_diff):
-    """Postprocess image using given difference."""
-    iproc.postprocess(image, image_diff)
-
-    # Write the framerate on top of the image.
-    iproc.writeOSD(
-        image, 
-        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
-        ratio=0.04,
-        )
-    
-def step4():
-    """Display the result of processing."""
-    # Show the images.
-    for name in NAMES:
-        exec('the_image = %s'%name)
-        cv2.imshow(name, the_image)
-    cv2.waitKey(1)
 
 # Keep track of previous iteration's timestamp.
 tstamp_prev = None  
 
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
+
+# Run the loop for designated amount of time.
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
 
@@ -98,15 +41,39 @@ while end > datetime.datetime.now():
     alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
 
     # Preprocess the image.
-    image_pre = step1(image)
-    
-    # Compute difference, and accumulate.
-    image_diff = step2(image_pre, alpha)
+    image_pre = iproc.preprocess2(image)
 
-    # Augment.
-    step3(image, image_diff)
+    # Initalize accumulation if so indicated.
+    if image_acc is None:
+        image_acc = np.empty(np.shape(image_pre))
 
-    # Display.
-    step4()
+    # Compute difference.
+    image_diff = cv2.absdiff(
+        image_acc.astype(image_pre.dtype),
+        image_pre,
+        )
+
+    # Accumulate.
+    hello = cv2.accumulateWeighted(
+        image_pre,
+        image_acc,
+        alpha,
+        )
+
+    # Draw the difference on top of the image.
+    iproc.postprocess(image, image_diff)
+
+    # Write the framerate on top of the image.
+    iproc.writeOSD(
+        image, 
+        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
+        ratio=0.04,
+        )
+
+    # Display the image.
+    cv2.imshow('motion 1', image)
+
+    # Allow HighGUI to process event.
+    cv2.waitKey(1)
 
 # The end.
