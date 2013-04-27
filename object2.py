@@ -1,4 +1,4 @@
-"""Face detection pipeline."""
+"""Object detection pipeline."""
 
 import multiprocessing
 import datetime
@@ -32,13 +32,13 @@ class Preprocessor(mpipe.OrderedWorker):
         return tstamp
  
 class Detector(mpipe.OrderedWorker):
-    """Detects faces."""
+    """Detects objects."""
     def __init__(self, classifier, color):
         self._classifier = classifier
         self._color = color
 
     def doTask(self, tstamp):
-        """Run face detection."""
+        """Run object detection."""
         result = list()
         try:
             image = common[tstamp]['image_pre']
@@ -80,18 +80,18 @@ class Postprocessor(mpipe.OrderedWorker):
         iproc.writeOSD(
             common[tstamp]['image_in'],
             ('%dx%d'%(size[1], size[0]),
-             '%.2f, %.2f, %.2f'%framerate.tick()),
+             '%.2f, %.2f, %.2f fps'%framerate.tick()),
             ratio=0.04,
             )
         return tstamp
 
-cv2.namedWindow('face detection', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('object detection', cv2.cv.CV_WINDOW_NORMAL)
 class Viewer(mpipe.OrderedWorker):
     """Displays image in a window."""
     def doTask(self, tstamp):
         try:
             image = common[tstamp]['image_in']
-            cv2.imshow('face detection', image)
+            cv2.imshow('object detection', image)
             cv2.waitKey(1)
         except:
             print('Error in viewer !!!')

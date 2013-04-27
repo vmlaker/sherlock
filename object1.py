@@ -1,4 +1,4 @@
-"""Sequential, vanilla face detection."""
+"""Sequential, vanilla object detection."""
 
 import datetime
 import sys
@@ -23,7 +23,7 @@ cap.set(4, HEIGHT)
 framerate = util.RateTicker((1,5,10))
 
 # Allow view window to be resizeable.
-cv2.namedWindow('face detection', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('object detection', cv2.cv.CV_WINDOW_NORMAL)
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
@@ -57,11 +57,11 @@ while end > datetime.datetime.now():
     iproc.writeOSD(
         image,
         ('%dx%d'%(size[1], size[0]),
-         '%.2f, %.2f, %.2f'%framerate.tick()),
+         '%.2f, %.2f, %.2f fps'%framerate.tick()),
         ratio=0.04,
         )
 
-    cv2.imshow('face detection', image)
+    cv2.imshow('object detection', image)
     cv2.waitKey(1)
 
 # The end.
