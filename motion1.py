@@ -1,4 +1,5 @@
-"""Simple single-process sequential image processing."""
+"""Simple single-process sequential image processing
+doing motion detection."""
 
 import datetime
 import sys
