@@ -94,6 +94,8 @@ class Step2Worker(mpipe.OrderedWorker):
             alpha,
             )
 
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
 
 class Step3Worker(mpipe.OrderedWorker):
     """Third step of image processing."""
@@ -124,6 +126,13 @@ class Step3Worker(mpipe.OrderedWorker):
             image_out,
             forked[self._alpha_age][tstamp]['image_diff'],
             image_out,
+            )
+
+        # Write the framerate on top of the image.
+        iproc.writeOSD(
+            image_out, 
+            ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
+            ratio=0.04,
             )
         return tstamp
 
@@ -157,24 +166,10 @@ class Staller(mpipe.OrderedWorker):
             time.sleep(duration.total_seconds())
         return tstamp
 
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
-def printStatus(tstamp):
-    """Print the framerate to stdout."""
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
-    return tstamp
-
-# Create the starting image processing stage, and the single
-# downstream printer, and link them up:
-#
-#    step1 ---> printer
-#
+# Create the starting image processing stage.
 step1 = mpipe.Stage(Step1Worker)
-printer = mpipe.OrderedStage(printStatus)
-step1.link(printer)
 
-# Create the 
+# Create the remainder of downstream stages.
 view_pipes = list()  # Keep a list of viewer sub-pipes.
 for age in ALPHA_AGES:
 

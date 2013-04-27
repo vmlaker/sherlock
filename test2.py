@@ -70,13 +70,20 @@ def step2((image, image_gray, alpha)):
 
     return (image, image_diff)
 
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
+
 def step3((image, image_diff)):
     """Postprocess image using given difference."""
     iproc.postprocess(image, image_diff)
-    return image
 
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
+    # Write the framerate on top of the image.
+    iproc.writeOSD(
+        image, 
+        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
+        ratio=0.04,
+        )
+    return image
 
 def step4(image):
     """Display the result of processing."""
@@ -85,10 +92,6 @@ def step4(image):
         exec('the_image = %s'%name)
         cv2.imshow(name, the_image)
     cv2.waitKey(1)
-
-    # Print the framerate.
-    global framerate
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
 
 stage1 = mpipe.OrderedStage(step1)
 stage2 = mpipe.OrderedStage(step2)

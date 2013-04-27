@@ -81,6 +81,9 @@ class Step2Worker(mpipe.OrderedWorker):
             alpha * self._alpha_mult,
             )
         
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
+
 def step3(tstamp):
     """Postprocess image using given difference."""
     iproc.postprocess(
@@ -88,6 +91,14 @@ def step3(tstamp):
         common[tstamp]['image_diff'],
         common[tstamp]['image_out'], 
         )
+
+    # Write the framerate on top of the image.
+    iproc.writeOSD(
+        common[tstamp]['image_out'],
+        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
+        ratio=0.04,
+        )
+
     return tstamp
 
 class Viewer(mpipe.OrderedWorker):
@@ -117,13 +128,6 @@ def stall(tstamp):
         time.sleep(duration.total_seconds())
     return tstamp
 
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
-def printStatus(tstamp):
-    """Print the framerate to stdout."""
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
-    return tstamp
 
 # Create the two viewer pipelines.
 pipe_vout = mpipe.Pipeline(
@@ -140,19 +144,17 @@ step3 = mpipe.OrderedStage(step3)
 filter_vdiff = mpipe.FilterStage((pipe_vdiff,), drop_results=True)
 filter_vout = mpipe.FilterStage((pipe_vout,), drop_results=True)
 stall = mpipe.OrderedStage(stall)
-printer = mpipe.OrderedStage(printStatus)
 
 # Link the stages into the image processing pipeline:
 #
 #  step1 ---> step2 --+--> step3 --------+--> filter_vout ---> stall
-#                     |                  |
-#                     +--> filter_vdiff  +--> printer
+#                     |                 
+#                     +--> filter_vdiff 
 #
 step1.link(step2)
 step2.link(step3)
 step2.link(filter_vdiff)
 step3.link(filter_vout)
-step3.link(printer)
 filter_vout.link(stall)
 pipe_iproc = mpipe.Pipeline(step1)
 

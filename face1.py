@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 import util
+import iproc
 import cascade
 
 DEVICE   = int(sys.argv[1])
@@ -42,6 +43,8 @@ while end > datetime.datetime.now():
         if len(rects):
             for a,b,c,d in rects:
                 result.append((a,b,c,d, cascade.colors[classi]))
+
+    # Draw the rectangles.
     for x1, y1, x2, y2, color in result:
         cv2.rectangle(
             image,
@@ -49,20 +52,15 @@ while end > datetime.datetime.now():
             color=color,
             thickness=2,
             )
-    scale = 0.85
-    for org, text in (
-        ((20, int(30*scale)), '%dx%d'%(size[1], size[0])),
-        ((20, int(60*scale)), '%.2f, %.2f, %.2f'%framerate.tick()),
-        ):
-        cv2.putText(
-            image,
-            text=text,
-            org=org,
-            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-            fontScale=scale,
-            color=(0,255,0),
-            thickness=2,
-            )
+
+    # Write image dimensions and framerate.
+    iproc.writeOSD(
+        image,
+        ('%dx%d'%(size[1], size[0]),
+         '%.2f, %.2f, %.2f'%framerate.tick()),
+        ratio=0.04,
+        )
+
     cv2.imshow('face detection', image)
     cv2.waitKey(1)
 

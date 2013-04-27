@@ -8,6 +8,7 @@ import cv2
 import gst
 
 import util
+import iproc
 
 DEVICE   = sys.argv[1]
 WIDTH    = int(sys.argv[2])
@@ -23,18 +24,16 @@ title = 'playing GStreamer capture'
 cv2.namedWindow(title, cv2.cv.CV_WINDOW_NORMAL)
 
 def onVideoBuffer(pad, idata):
-    """Convert buffer data and show as image."""
+    """Convert buffer data, draw the framerate on it, and display it."""
     image = np.ndarray(
         shape=(HEIGHT, WIDTH, DEPTH), 
         dtype=np.uint8, 
         buffer=idata,
         )
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),))
     cv2.imshow(title, image)
     cv2.waitKey(1)
-
-    # Print the framerate.
-    print('%.2f, %.2f, %.2f'%framerate.tick())
 
 # Assemble the GStreamer video stream pipeline.
 specs = [

@@ -63,13 +63,20 @@ def step2(image, alpha):
 
     return image_diff
 
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
+
 def step3(image, image_diff):
     """Postprocess image using given difference."""
     iproc.postprocess(image, image_diff)
 
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
+    # Write the framerate on top of the image.
+    iproc.writeOSD(
+        image, 
+        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
+        ratio=0.04,
+        )
+    
 def step4():
     """Display the result of processing."""
     # Show the images.
@@ -77,10 +84,6 @@ def step4():
         exec('the_image = %s'%name)
         cv2.imshow(name, the_image)
     cv2.waitKey(1)
-
-    # Print the framerate.
-    global framerate
-    print('%05.3f, %05.3f, %05.3f'%framerate.tick())
 
 # Keep track of previous iteration's timestamp.
 tstamp_prev = None  

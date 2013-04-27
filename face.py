@@ -62,8 +62,11 @@ framerate = util.RateTicker((1,5,10))
 
 class Postprocessor(mpipe.OrderedWorker):
     def doTask(self, (tstamp, rects,)):
+        """Augment the input image with results of processing."""
         # Make a flat list from a list of lists .
         rects = [item for sublist in rects for item in sublist]
+
+        # Draw rectangles.
         for x1, y1, x2, y2, color in rects:
             cv2.rectangle(
                 common[tstamp]['image_in'],
@@ -71,21 +74,15 @@ class Postprocessor(mpipe.OrderedWorker):
                 color=color,
                 thickness=2,
                 )
+
+        # Write image dimensions and framerate.
         size = np.shape(common[tstamp]['image_in'])[:2]
-        scale = 0.85
-        for org, text in (
-            ((20, int(30*scale)), '%dx%d'%(size[1], size[0])),
-            ((20, int(60*scale)), '%.2f, %.2f, %.2f'%framerate.tick()),
-            ):
-            cv2.putText(
-                common[tstamp]['image_in'],
-                text=text,
-                org=org,
-                fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                fontScale=scale,
-                color=(0,255,0),
-                thickness=2,
-                )
+        iproc.writeOSD(
+            common[tstamp]['image_in'],
+            ('%dx%d'%(size[1], size[0]),
+             '%.2f, %.2f, %.2f'%framerate.tick()),
+            ratio=0.04,
+            )
         return tstamp
 
 cv2.namedWindow('face detection', cv2.cv.CV_WINDOW_NORMAL)
