@@ -54,7 +54,7 @@ Now, run the first motion detection test using the following command:
 ```
 python motion1.py 0 640 480 5
 ```
-Now, run the first object detection test using the following command:
+Next, try the first object detection test using the following command:
 ```
 python object1.py 0 640 480 5
 ```
