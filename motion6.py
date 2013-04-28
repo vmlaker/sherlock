@@ -150,13 +150,16 @@ class Viewer(mpipe.OrderedWorker):
         """Initialize object with name of image."""
         self._lifetime = lifetime
         self._image_name = image_name
+        self._win_name = '%s  (lifetime=%ss)'%(self._image_name, self._lifetime)
+
+    def doInit(self):
+        """Run namedWindow() in the viewer worker process."""
+        cv2.namedWindow(self._win_name, cv2.cv.CV_WINDOW_NORMAL)
 
     def doTask(self, tstamp):
         try:
-            win_name = '%s  (lifetime=%ss)'%(self._image_name, self._lifetime)
-            cv2.namedWindow(win_name, cv2.cv.CV_WINDOW_NORMAL)
             image = forked[self._lifetime][tstamp][self._image_name]
-            cv2.imshow(win_name, image)
+            cv2.imshow(self._win_name, image)
             cv2.waitKey(1)
         except:
             print('error running viewer %s !!!'%self._image_name)
