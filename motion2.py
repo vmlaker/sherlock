@@ -19,18 +19,10 @@ cap = cv2.VideoCapture(DEVICE)
 cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
-# Create the output windows.
-NAMES = (
-    'image',
-#    'image_pre', 
-#    'image_diff', 
-#    'image_thresh',
-#    'image_acc',
-    )
-for name in NAMES:
-    cv2.namedWindow(name, cv2.cv.CV_WINDOW_NORMAL)
+# Create the output window.
+cv2.namedWindow('motion 2', cv2.cv.CV_WINDOW_NORMAL)
 
-# Accumulation of thresholded differences.
+# Maintain accumulation of thresholded differences.
 image_acc = None  
 
 # Keep track of previous iteration's timestamp.
@@ -48,11 +40,9 @@ def step2((image, image_gray, alpha)):
     then accumulate and return the difference. Initialize accumulation
     if needed (if opacity is 100%.)"""
 
-    # Use global accumulation.
-    global image_acc
-
     # Initalize accumulation if so indicated.
-    if alpha == 1.0:
+    global image_acc
+    if image_acc is None:
         image_acc = np.empty(np.shape(image_gray))
 
     # Compute difference.
@@ -86,12 +76,9 @@ def step3((image, image_diff)):
     return image
 
 def step4(image):
-    """Display the result of processing."""
-    # Show the images.
-    for name in NAMES:
-        exec('the_image = %s'%name)
-        cv2.imshow(name, the_image)
-    cv2.waitKey(1)
+    """Display the image."""
+    cv2.imshow('motion 2', image)
+    cv2.waitKey(1)  # Allow HighGUI to process event.
 
 stage1 = mpipe.OrderedStage(step1)
 stage2 = mpipe.OrderedStage(step2)
