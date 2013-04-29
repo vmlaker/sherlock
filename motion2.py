@@ -1,4 +1,4 @@
-"""Multiple process image processing."""
+"""Multiprocess motion detection."""
 
 import datetime
 import sys
