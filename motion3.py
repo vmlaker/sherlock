@@ -1,4 +1,4 @@
-"""Multiple process image processing using mid-stage result."""
+"""Multiprocess motion detection using mid-stage result."""
 
 import datetime
 import sys
@@ -74,23 +74,21 @@ def step3((image, image_diff)):
         ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
         ratio=0.04,
         )
-
     return image
 
-def showImage(image):
+def step4(image):
     """Display the image."""
     cv2.imshow('motion 3', image)
     cv2.waitKey(1)  # Allow HighGUI to process event.
 
-stages = list()
-stages.append(mpipe.OrderedStage(step1))
-stages.append(mpipe.Stage(Step2Worker))
-stages.append(mpipe.OrderedStage(step3))
-stages.append(mpipe.OrderedStage(showImage))
-stages[0].link(stages[1])
-stages[1].link(stages[2])
-stages[2].link(stages[3])
-pipe = mpipe.Pipeline(stages[0])
+stage1 = mpipe.OrderedStage(step1)
+stage2 = mpipe.Stage(Step2Worker)
+stage3 = mpipe.OrderedStage(step3)
+stage4 = mpipe.OrderedStage(step4)
+stage1.link(stage2)
+stage2.link(stage3)
+stage3.link(stage4)
+pipe = mpipe.Pipeline(stage1)
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
