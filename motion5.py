@@ -23,6 +23,9 @@ cap = cv2.VideoCapture(DEVICE)
 cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
+# Create the output window.
+cv2.namedWindow('motion 5', cv2.cv.CV_WINDOW_NORMAL)
+
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory and other useful values.
 manager = multiprocessing.Manager()
@@ -49,8 +52,7 @@ def step1(tstamp):
 
 class Step2Worker(mpipe.OrderedWorker):
 
-    def __init__(self, alpha_mult):
-        self._alpha_mult = alpha_mult  # Alpha multiplier.
+    def __init__(self):
         self._image_acc = None  # Accumulation of thresholded differences.
 
     def doTask(self, tstamp):
@@ -62,7 +64,7 @@ class Step2Worker(mpipe.OrderedWorker):
         alpha = common[tstamp]['alpha']
         
         # Initalize accumulation if so indicated.
-        if alpha == 1.0:
+        if self._image_acc is None:
             self._image_acc = np.empty(np.shape(image_pre))
 
         # Compute difference.
@@ -78,7 +80,7 @@ class Step2Worker(mpipe.OrderedWorker):
         hello = cv2.accumulateWeighted(
             image_pre,
             self._image_acc,
-            alpha * self._alpha_mult,
+            alpha,
             )
         
 # Monitor framerates for the given seconds past.
@@ -101,23 +103,11 @@ def step3(tstamp):
 
     return tstamp
 
-class Viewer(mpipe.OrderedWorker):
-    """Displays image in a window."""
-
-    def __init__(self, image_name):
-        """Initialize object with name of image."""
-        self._image_name = image_name
-
-    def doTask(self, tstamp):
-        try:
-            cv2.namedWindow(self._image_name, cv2.cv.CV_WINDOW_NORMAL)
-            image = common[tstamp][self._image_name]
-            cv2.imshow(self._image_name, image)
-            cv2.waitKey(1)
-        except:
-            print('error running viewer %s !!!'%self._image_name)
-        return tstamp
-
+def view(tstamp):
+    """Display the output image."""
+    cv2.imshow('motion 5', common[tstamp]['image_out'])
+    cv2.waitKey(1)  # Allow HighGUI to process event.
+    return tstamp
 
 def stall(tstamp):
     """Make sure the timestamp is at least a certain 
@@ -129,47 +119,36 @@ def stall(tstamp):
     return tstamp
 
 
-# Create the two viewer pipelines.
-pipe_vout = mpipe.Pipeline(
-    mpipe.Stage(Viewer, 1, image_name='image_out'))
-pipe_vdiff = mpipe.Pipeline(
-    mpipe.Stage(Viewer, 1, image_name='image_diff'))
+# Create the viewer pipeline.
+pipe_vout = mpipe.Pipeline(mpipe.OrderedStage(view))
 
 # Create the image processing stages.
 step1 = mpipe.OrderedStage(step1)
-step2 = mpipe.Stage(Step2Worker, size=1, alpha_mult=0.50)
+step2 = mpipe.Stage(Step2Worker)
 step3 = mpipe.OrderedStage(step3)
 
 # Create the other, downstream stages.
-filter_vdiff = mpipe.FilterStage((pipe_vdiff,), drop_results=True)
 filter_vout = mpipe.FilterStage((pipe_vout,), drop_results=True)
 stall = mpipe.OrderedStage(stall)
 
 # Link the stages into the image processing pipeline:
 #
-#  step1 ---> step2 --+--> step3 --------+--> filter_vout ---> stall
-#                     |                 
-#                     +--> filter_vdiff 
+#  step1 ---> step2 ---> step3 ---> filter_vout ---> stall
 #
 step1.link(step2)
 step2.link(step3)
-step2.link(filter_vdiff)
 step3.link(filter_vout)
 filter_vout.link(stall)
-pipe_iproc = mpipe.Pipeline(step1)
+pipe = mpipe.Pipeline(step1)
 
-# Create an auxiliary pipeline that simply pulls results from
-# the image processing pipeline, and deallocates the shared
-# memory associated with pulled timestamps. 
-def pull(tstamp):
-    prev = None
-    for tstamp in pipe_iproc.results():
-        if prev is not None:
-            del common[prev]
-        prev = tstamp
-    del common[prev]
-pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
-pipe_pull.put(True)  # Start it up right away.
+# Create an auxiliary process (modeled as a one-task pipeline)
+# that simply pulls results from the image processing pipeline, 
+# and deallocates the associated shared memory.
+def pull(task):
+    for tstamp in pipe.results():
+        del common[tstamp]
+pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(pull))
+pipe2.put(True)  # Start it up right away.
 
 # Run the video capture loop, allocating shared memory
 # and feeding the image processing pipeline.
@@ -203,16 +182,15 @@ while end > now:
         'image_out'  : image_out,
         'alpha'      : 1.0,
         }
-    pipe_iproc.put(now)
+    pipe.put(now)
 
 # Send the "stop" task to all pipelines.
-pipe_iproc.put(None)
-pipe_pull.put(None)
-pipe_vdiff.put(None)
+pipe.put(None)
+pipe2.put(None)
 pipe_vout.put(None)
 
 # Wait until the pull pipeline processes all it's tasks.
-for result in pipe_pull.results():
+for result in pipe2.results():
     pass
 
 # The end.
