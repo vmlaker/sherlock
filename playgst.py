@@ -8,6 +8,7 @@ import cv2
 import gst
 
 import util
+from util import pygst_wrap
 import iproc
 
 DEVICE   = sys.argv[1]
@@ -47,7 +48,7 @@ specs = [
             ]),
     ('fake', 'fakesink', []),
     ]
-(vpipe, elements, args,) = util.create_gst_pipeline(specs)
+(vpipe, elements, args,) = pygst_wrap.create_gst_pipeline(specs)
 
 # Add the buffer probe on the last element.
 pad = next(elements['fake'].sink_pads())
