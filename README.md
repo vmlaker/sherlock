@@ -1,10 +1,10 @@
 Sherlock
 ========
 
-A real-time Python image processing toolkit. 
+Live webcam image processing in Python.
 
-Sherlock is released as a set of example command-line programs to demonstrate fast image processing of live video (e.g. from a webcam) using symmetric multiprocessing with shared memory, in Python.
-It is a collection of test codes. 
+Sherlock is a collection of command-line programs for image processing of live video (e.g. from a webcam), utilizing multiprocessing and shared memory. 
+Written in Python, of course!
 
 Software dependencies
 ---------------------
@@ -13,8 +13,8 @@ Before you can run the codes, have the following libraries installed for your Py
 
 ### OpenCV
 
-[Open Source Computer Vision](http://opencv.org) is used for image processing (algorithms found in [``cv2``](http://docs.opencv.org/modules/refman.html) module.) 
-On a YUM system, install it with:
+[Open Source Computer Vision](http://opencv.org) is used for image processing algorithms. 
+On a YUM system, install the Python bindings with:
 ```
 yum install opencv-python
 ```
@@ -25,7 +25,8 @@ aptitude install python-opencv
 
 ### numpy-sharedmem
 
-Images (large NumPy arrays) are efficiently accessed by multiple processes using the ``sharedmem`` module. Take a look at the [numpy-sharedmem project](http://bitbucket.org/cleemesser/numpy-sharedmem) for details.
+Images (large NumPy arrays) are efficiently accessed by multiple processes using the ``sharedmem`` module. 
+Take a look at the [numpy-sharedmem project](http://bitbucket.org/cleemesser/numpy-sharedmem) for details.
 Install the module with:
 ```
 hg clone https://cleemesser@bitbucket.org/cleemesser/numpy-sharedmem/
@@ -43,18 +44,34 @@ cd mpipe
 python setup.py install --user
 ```
 
-Usage
------
+Playback test
+-------------
 
-Test your OpenCV Python bindings with a simple video playback. The following displays frames captured from the first video device (i.e. ``/dev/video0``) for 5 seconds:
+First thing, test your OpenCV Python bindings with simple video playback. 
+The following command shows live view from the first video device (i.e. ``/dev/video0``) for a duration of 5 seconds:
 ```
 python playcv2.py 0 640 480 5
 ```
-Now, run the first motion detection test using the following command:
+
+Motion detection
+----------------
+
+The following programs demonstrate simplified motion detection:
+
+* ``motion1.py`` - single process
+* ``motion2.py`` - add multiprocessing
+* ``motion3.py`` - add shared memory
+* ``motion4.py`` - adjust for mid-stage result
+* ``motion5.py`` - add frame drop
+
+The codes increase in complexity with changes intended to enhance performance. 
+
+The overall processing algorithm is a simple run-of-the-mill foreground/background segmentation using scene average. 
+For example, to run the first program using ``/dev/video0``, try this:
 ```
 python motion1.py 0 640 480 5
 ```
-Next, try the first object detection test using the following command:
-```
-python object1.py 0 640 480 5
-```
+Now try the others -- compare the framerates and any lag in video output. 
+You might consider profiling resource usage by running with ``time``. 
+ 
+Have fun!

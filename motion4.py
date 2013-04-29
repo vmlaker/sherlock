@@ -1,4 +1,5 @@
-"""Multiprocess motion detection using shared memory."""
+"""Multiprocess motion detection using shared memory
+with mid-stage result."""
 
 import multiprocessing
 import datetime
@@ -50,8 +51,9 @@ def step1(tstamp):
 
     iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
     return tstamp
- 
+
 class Step2Worker(mpipe.OrderedWorker):
+
     def doTask(self, tstamp):
         """Compute difference between given image and accumulation,
         then accumulate and set result with the difference. 
@@ -81,7 +83,7 @@ class Step2Worker(mpipe.OrderedWorker):
             image_acc,
             alpha,
             )
-        
+
 # Monitor framerates for the given seconds past.
 framerate = util.RateTicker((1,5,10))
 
