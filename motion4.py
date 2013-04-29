@@ -1,7 +1,8 @@
-"""Multiple process image processing using shared memory."""
+"""Multiprocess motion detection using shared memory."""
 
 import multiprocessing
 import datetime
+import time
 import sys
 import cv2
 import numpy as np
@@ -21,12 +22,15 @@ cap = cv2.VideoCapture(DEVICE)
 cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
+# Create the output window.
+cv2.namedWindow('motion 4', cv2.cv.CV_WINDOW_NORMAL)
+
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory and other useful values.
 manager = multiprocessing.Manager()
 common = manager.dict()
 
-# Accumulation of thresholded differences.
+# Maintain accumulation of thresholded differences.
 image_acc = None  
 
 # Keep track of previous iteration's timestamp.
@@ -57,11 +61,9 @@ class Step2Worker(mpipe.OrderedWorker):
         image = common[tstamp]['image_in']
         alpha = common[tstamp]['alpha']
         
-        # Use global accumulation.
-        global image_acc
-
         # Initalize accumulation if so indicated.
-        if alpha == 1.0:
+        global image_acc
+        if image_acc is None:
             image_acc = np.empty(np.shape(image_pre))
 
         # Compute difference.
@@ -100,66 +102,40 @@ def step3(tstamp):
 
     return tstamp
 
-class Viewer(mpipe.OrderedWorker):
-    """Base class viewer implementation, specialized in
-    subclasses by overriding getName()."""
-    def doTask(self, tstamp):
-        name = self.getName()
-        try:
-            cv2.namedWindow(name, cv2.cv.CV_WINDOW_NORMAL)
-            image = common[tstamp][name]
-            cv2.imshow(name, image)
-            cv2.waitKey(1)
-        except:
-            print('error running viewer %s !!!'%name)
-        return tstamp
-    def getName(self): return 'base'
+def step4(tstamp):
+    """Display the output image."""
+    cv2.imshow('motion 4', common[tstamp]['image_out'])
+    cv2.waitKey(1)  # Allow HighGUI to process event.
+    return tstamp
 
-class ViewerIn(Viewer):
-    def getName(self): return 'image_in'
-class ViewerPre(Viewer):
-    def getName(self): return 'image_pre'
-class ViewerDiff(Viewer):
-    def getName(self): return 'image_diff'
-class ViewerOut(Viewer):
-    def getName(self): return 'image_out'
+def step5(tstamp):
+    """Make sure the timestamp is at least a certain 
+    age before propagating it further."""
+    delta = datetime.datetime.now() - tstamp
+    duration = datetime.timedelta(seconds=2) - delta
+    if duration > datetime.timedelta():
+        time.sleep(duration.total_seconds())
+    return tstamp
 
-# Create the image processing stages.
-step1 = mpipe.OrderedStage(step1)
-step2 = mpipe.Stage(Step2Worker)
-step3 = mpipe.OrderedStage(step3)
+stage1 = mpipe.OrderedStage(step1)
+stage2 = mpipe.Stage(Step2Worker)
+stage3 = mpipe.OrderedStage(step3)
+stage4 = mpipe.OrderedStage(step4)
+stage5 = mpipe.OrderedStage(step5)
+stage1.link(stage2)
+stage2.link(stage3)
+stage3.link(stage4)
+stage4.link(stage5)
+pipe = mpipe.Pipeline(stage1)
 
-# Create the output display stages.
-viewer_in = mpipe.Stage(ViewerIn)
-viewer_pre = mpipe.Stage(ViewerPre)
-viewer_diff = mpipe.Stage(ViewerDiff)
-viewer_out = mpipe.Stage(ViewerOut)
-
-# Link the stages into a pipeline.
-#
-#  step1 ---+---> step2 ------+---> step3 --------+---> viewer_out
-#           |                 |                 
-#           +---> viewer_in   +---> viewer_diff 
-#           |
-#           +---> viewer_pre
-#
-step1.link(step2)
-step1.link(viewer_in)
-step1.link(viewer_pre)
-step2.link(step3)
-step2.link(viewer_diff)
-step3.link(viewer_out)
-pipe = mpipe.Pipeline(step1)
-
-def pull(tstamp):
-    prev = None
+# Create an auxiliary process (modeled as a one-task pipeline)
+# that simply pulls results from the image processing pipeline, 
+# and deallocates the associated shared memory.
+def pull(task):
     for tstamp in pipe.results():
-        if prev is not None:
-            del common[prev]
-        prev = tstamp
-    del common[prev]
+        del common[tstamp]
 pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(pull))
-pipe2.put(True)
+pipe2.put(True)  # Start it up right away.
 
 now = datetime.datetime.now()
 end = now + datetime.timedelta(seconds=DURATION)
