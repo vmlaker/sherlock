@@ -90,8 +90,8 @@ def step3(tstamp):
     """Postprocess image using given difference."""
     iproc.postprocess(
         common[tstamp]['image_in'], 
-        common[tstamp]['image_diff'],
-        common[tstamp]['image_out'], 
+        image_diff=common[tstamp]['image_diff'],
+        image_out=common[tstamp]['image_out'],
         )
 
     # Write the framerate on top of the image.
