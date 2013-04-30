@@ -20,7 +20,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the output window.
-cv2.namedWindow('motion 2', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('motion detection 2', cv2.cv.CV_WINDOW_NORMAL)
 
 # Maintain accumulation of thresholded differences.
 image_acc = None  
@@ -71,7 +71,7 @@ def step3((image, image_diff)):
 
 def step4(image):
     """Display the image."""
-    cv2.imshow('motion 2', image)
+    cv2.imshow('motion detection 2', image)
     cv2.waitKey(1)  # Allow HighGUI to process event.
 
 stage1 = mpipe.OrderedStage(step1)

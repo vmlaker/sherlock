@@ -84,13 +84,13 @@ class Postprocessor(mpipe.OrderedWorker):
             )
         return tstamp
 
-cv2.namedWindow('object detection', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('object detection 2', cv2.cv.CV_WINDOW_NORMAL)
 class Viewer(mpipe.OrderedWorker):
     """Displays image in a window."""
     def doTask(self, tstamp):
         try:
             image = common[tstamp]['image_in']
-            cv2.imshow('object detection', image)
+            cv2.imshow('object detection 2', image)
             cv2.waitKey(1)
         except:
             print('Error in viewer !!!')

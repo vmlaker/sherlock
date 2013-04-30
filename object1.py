@@ -23,7 +23,7 @@ cap.set(4, HEIGHT)
 framerate = util.RateTicker((1,5,10))
 
 # Allow view window to be resizeable.
-cv2.namedWindow('object detection', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('object detection 1', cv2.cv.CV_WINDOW_NORMAL)
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
@@ -60,7 +60,7 @@ while end > datetime.datetime.now():
          '%.2f, %.2f, %.2f fps'%framerate.tick()),
         )
 
-    cv2.imshow('object detection', image)
+    cv2.imshow('object detection 1', image)
     cv2.waitKey(1)
 
 # The end.

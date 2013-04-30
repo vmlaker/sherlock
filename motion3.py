@@ -23,7 +23,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the output window.
-cv2.namedWindow('motion 3', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('motion detection 3', cv2.cv.CV_WINDOW_NORMAL)
 
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory and other useful values.
@@ -101,7 +101,7 @@ def step3(tstamp):
 
 def step4(tstamp):
     """Display the output image."""
-    cv2.imshow('motion 3', common[tstamp]['image_out'])
+    cv2.imshow('motion detection 3', common[tstamp]['image_out'])
     cv2.waitKey(1)  # Allow HighGUI to process event.
     return tstamp
 

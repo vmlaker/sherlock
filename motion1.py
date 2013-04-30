@@ -20,7 +20,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the output window.
-cv2.namedWindow('motion 1', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('motion detection 1', cv2.cv.CV_WINDOW_NORMAL)
 
 # Maintain accumulation of thresholded differences.
 image_acc = None  
@@ -68,7 +68,7 @@ while end > datetime.datetime.now():
     iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
 
     # Display the image.
-    cv2.imshow('motion 1', image)
+    cv2.imshow('motion detection 1', image)
 
     # Allow HighGUI to process event.
     cv2.waitKey(1)
