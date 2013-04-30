@@ -133,10 +133,10 @@ pipe = mpipe.Pipeline(stage1)
 # Create an auxiliary process (modeled as a one-task pipeline)
 # that simply pulls results from the image processing pipeline, 
 # and deallocates the associated shared memory.
-def pull(task):
+def deallocate(task):
     for tstamp in pipe.results():
         del common[tstamp]
-pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(pull))
+pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
 pipe2.put(True)  # Start it up right away.
 
 now = datetime.datetime.now()
@@ -171,9 +171,11 @@ while end > now:
         }
     pipe.put(now)
 
+# Signal processing pipeline to stop.
 pipe.put(None)
-pipe2.put(None)
 
+# Signal deallocator to stop and wait until it frees all memory.
+pipe2.put(None)
 for result in pipe2.results():
     pass
 

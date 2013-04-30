@@ -118,7 +118,6 @@ def stall(tstamp):
         time.sleep(duration.total_seconds())
     return tstamp
 
-
 # Create the viewer pipeline.
 pipe_vout = mpipe.Pipeline(mpipe.OrderedStage(view))
 
@@ -144,10 +143,10 @@ pipe = mpipe.Pipeline(step1)
 # Create an auxiliary process (modeled as a one-task pipeline)
 # that simply pulls results from the image processing pipeline, 
 # and deallocates the associated shared memory.
-def pull(task):
+def deallocate(task):
     for tstamp in pipe.results():
         del common[tstamp]
-pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(pull))
+pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
 pipe2.put(True)  # Start it up right away.
 
 # Run the video capture loop, allocating shared memory
@@ -184,12 +183,12 @@ while end > now:
         }
     pipe.put(now)
 
-# Send the "stop" task to all pipelines.
+# Signal processing pipelines to stop.
 pipe.put(None)
-pipe2.put(None)
 pipe_vout.put(None)
 
-# Wait until the pull pipeline processes all it's tasks.
+# Signal deallocator to stop and wait until it frees all memory.
+pipe2.put(None)
 for result in pipe2.results():
     pass
 

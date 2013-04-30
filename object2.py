@@ -137,15 +137,11 @@ pipe_iproc = mpipe.Pipeline(preproc)
 # Create an auxiliary process (modeled as a one-task pipeline)
 # that simply pulls results from the image processing pipeline
 # and deallocates the associated memory.
-def pull(task):
+def deallocate(task):
     for tstamp in pipe_iproc.results():
         del common[tstamp]
-pipe_pull = mpipe.Pipeline(mpipe.UnorderedStage(pull))
-
-# Start it up right away. Since it's a single-task (startup task) 
-# pipeline, we can also send the "stop" task immediately.
-pipe_pull.put(True)  
-pipe_pull.put(None) 
+pipe_dealloc = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
+pipe_dealloc.put(True)  # Start it up right away.
 
 # Create the OpenCV video capture object.
 cap = cv2.VideoCapture(DEVICE)
@@ -186,14 +182,17 @@ while end > now:
 # Capturing of video is done. Now let's shut down all
 # pipelines by sending them the "stop" task.
 pipe_iproc.put(None)
-for result in pipe_pull.results():
-    pass
 for pipe in detector_pipes:
     pipe.put(None)
     for result in pipe.results():
         pass
 pipe_viewer.put(None)
 for result in pipe_viewer.results():
+    pass
+
+# Signal deallocator to stop and wait until it frees all memory.
+pipe_dealloc.put(None)
+for result in pipe_dealloc.results():
     pass
 
 # The end.
