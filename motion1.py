@@ -42,7 +42,7 @@ while end > datetime.datetime.now():
     alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
 
     # Preprocess the image.
-    image_pre = iproc.preprocess2(image)
+    image_pre = iproc.preprocess(image)
 
     # Initalize accumulation if so indicated.
     if image_acc is None:

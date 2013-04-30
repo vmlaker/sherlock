@@ -32,7 +32,7 @@ def step1(image):
     """Return preprocessed image."""
     global tstamp_prev
     alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
-    image_pre = iproc.preprocess2(image)
+    image_pre = iproc.preprocess(image)
     return (image, image_pre, alpha)
  
 def step2((image, image_gray, alpha)):

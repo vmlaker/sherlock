@@ -25,28 +25,16 @@ def getAlpha(tstamp_prev, max_life=1.0):
         alpha /= max_life
     return alpha, now
 
-def preprocess(image_in, image_out):
-    """Equalize the grayscale version of input image,
-    operate inplace on given output image."""
-    cv2.cvtColor(
+def preprocess(image_in, image_out=None):
+    """Turn to grayscale, then equalize histogram."""
+    image_out = cv2.cvtColor(
         image_in,
         cv2.COLOR_BGR2GRAY, 
         image_out,
-        )
-    cv2.equalizeHist(
-        image_out,
-        image_out,
-        )
-
-def preprocess2(image_in):
-    """Equalize the grayscale version of input image.
-    Return resulting image."""
-    image_gray = cv2.cvtColor(
-        image_in,
-        cv2.COLOR_BGR2GRAY, 
         )
     image_out = cv2.equalizeHist(
-        image_gray,
+        image_out,
+        image_out,
         )
     return image_out
 
@@ -72,7 +60,7 @@ def threshold(image_in, image_out=None):
         )
     return image_out
     
-def postprocess(image, image_diff, image_out=None, rect=False):
+def postprocess(image, image_diff, image_out=None, image_thresh=None, rect=False):
     """Augment given image with given difference.
     Operate inplace on image, unless given output image."""
 
@@ -112,8 +100,8 @@ def postprocess(image, image_diff, image_out=None, rect=False):
     # Augment output image with contours.
     cv2.drawContours(
         image_out,
-        filtered,
-        -1,
+        contours=filtered,
+        contourIdx=-1,
         color=(63, 200, 63),  # Green.
         thickness=2,
         )
