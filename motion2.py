@@ -88,6 +88,8 @@ end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
     hello, image = cap.read()
     pipe.put(image)
+
+# Signal processing pipeline to stop.
 pipe.put(None)
 
 # The end.
