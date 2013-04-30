@@ -105,34 +105,22 @@ class Step3Worker(mpipe.OrderedWorker):
     def doTask(self, tstamp):
         """Postprocess image using given difference."""
 
-        # Allocate shared memory for the resulting output image.
+        # Allocate shared memory for the resulting output images.
         image_in = common[tstamp]['image_in']
         shape = np.shape(image_in)
         dtype = image_in.dtype
         image_difft = sharedmem.empty(shape[:2], dtype)
         image_out = sharedmem.empty(shape, dtype)
 
-        # Create thresholded version of the diff image.
-        iproc.threshold(
-            forked[self._lifetime][tstamp]['image_diff'],
-            image_difft,
-        )
-
         # Copy the input image to the output image memory.
         image_out[:] = image_in.copy()
-
-        # Add memory reference to the table.
-        # (reassigning modified object to proxy container.)
-        itstamp = forked[self._lifetime][tstamp]
-        itstamp['image_difft'] = image_difft
-        itstamp['image_out'] = image_out
-        forked[self._lifetime][tstamp] = itstamp
 
         # Postprocess the output image.
         iproc.postprocess(
             image_out,
             forked[self._lifetime][tstamp]['image_diff'],
-            image_out,
+            image_out=image_out,
+            image_thresh=image_difft,
             )
 
         # Write the framerate on top of the image.
@@ -141,6 +129,14 @@ class Step3Worker(mpipe.OrderedWorker):
             ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
             ratio=0.04,
             )
+
+        # Add memory reference to the table.
+        # (reassigning modified object to proxy container.)
+        itstamp = forked[self._lifetime][tstamp]
+        itstamp['image_difft'] = image_difft
+        itstamp['image_out'] = image_out
+        forked[self._lifetime][tstamp] = itstamp
+
         return tstamp
 
 class Viewer(mpipe.OrderedWorker):
