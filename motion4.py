@@ -93,12 +93,12 @@ def step3(tstamp):
     iproc.postprocess(
         common[tstamp]['image_in'], 
         image_source=image_difft,
-        image_out=common[tstamp]['image_out'], 
+        image_out=common[tstamp]['image_in'], 
         )
 
     # Write the framerate on top of the image.
     iproc.writeOSD(
-        common[tstamp]['image_out'],
+        common[tstamp]['image_in'],
         ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
         )
 
@@ -106,7 +106,7 @@ def step3(tstamp):
 
 def step4(tstamp):
     """Display the output image."""
-    cv2.imshow('motion detection 4', common[tstamp]['image_out'])
+    cv2.imshow('motion detection 4', common[tstamp]['image_in'])
     cv2.waitKey(1)  # Allow HighGUI to process event.
     return tstamp
 
@@ -148,25 +148,20 @@ while end > now:
     # Allocate shared memory for
     #   a copy of the input image,
     #   the preprocessed image,
-    #   the diff image,
-    #   the resulting output image.
+    #   the diff image.
     shape = np.shape(image)
     dtype = image.dtype
     image_in   = sharedmem.empty(shape,     dtype)
     image_pre  = sharedmem.empty(shape[:2], dtype)
     image_diff = sharedmem.empty(shape[:2], dtype)
-    image_out  = sharedmem.empty(shape,     dtype)
     
-    # Copy the input image to it's shared memory version,
-    # and also to the eventual output image memory.
+    # Copy the input image to it's shared memory version.
     image_in[:] = image.copy()
-    image_out[:] = image.copy()
     
     common[now] = {
         'image_in'   : image_in,
         'image_pre'  : image_pre,
         'image_diff' : image_diff,
-        'image_out'  : image_out,
         'alpha'      : 1.0,
         }
     pipe.put(now)
