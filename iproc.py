@@ -118,7 +118,10 @@ def postprocess(image, image_diff, image_out=None, image_thresh=None, rect=False
                 thickness=2,
                 )
 
-def writeOSD(image, lines, ratio=0.05):
+def writeOSD(image, lines, size=0.04):
+    """Write text given in *lines* iterable, 
+    the height of each line determined by *size* as
+    proportion of image height."""
 
     # Compute row height at scale 1.0 first.
     (letter_width, letter_height), baseline = cv2.getTextSize(
@@ -127,12 +130,15 @@ def writeOSD(image, lines, ratio=0.05):
         fontScale=1.0,
         thickness=1)
 
-    # Compute scale to match desired height. 
+    # Compute actual scale to match desired height. 
     image_height = np.shape(image)[0]
-    line_height = int(image_height * ratio)
+    line_height = int(image_height * size)
     scale = float(line_height) / letter_height
 
+    # Deterimine base thickness, based on scale.
     thickness = int(scale * 4)
+
+    # Increase line height, to account for thickness.
     line_height += thickness * 3
 
     # Iterate the lines of text, and draw them.

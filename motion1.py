@@ -65,11 +65,7 @@ while end > datetime.datetime.now():
     iproc.postprocess(image, image_diff)
 
     # Write the framerate on top of the image.
-    iproc.writeOSD(
-        image, 
-        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
-        ratio=0.04,
-        )
+    iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
 
     # Display the image.
     cv2.imshow('motion 1', image)

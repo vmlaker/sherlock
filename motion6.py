@@ -127,7 +127,6 @@ class Step3Worker(mpipe.OrderedWorker):
         iproc.writeOSD(
             image_out, 
             ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
-            ratio=0.04,
             )
 
         # Add memory reference to the table.

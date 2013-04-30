@@ -99,7 +99,6 @@ def step3(tstamp):
     iproc.writeOSD(
         common[tstamp]['image_out'],
         ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
-        ratio=0.04,
         )
 
     return tstamp

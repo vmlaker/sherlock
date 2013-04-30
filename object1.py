@@ -58,7 +58,6 @@ while end > datetime.datetime.now():
         image,
         ('%dx%d'%(size[1], size[0]),
          '%.2f, %.2f, %.2f fps'%framerate.tick()),
-        ratio=0.04,
         )
 
     cv2.imshow('object detection', image)
