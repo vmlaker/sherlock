@@ -115,12 +115,18 @@ class Step3Worker(mpipe.OrderedWorker):
         # Copy the input image to the output image memory.
         image_out[:] = image_in.copy()
 
+        # Threshold the difference.
+        iproc.threshold(
+            forked[self._lifetime][tstamp]['image_diff'],
+            image_difft,
+            )
+
         # Postprocess the output image.
+        # It changes the source image, so pass in a copy.
         iproc.postprocess(
             image_out,
-            forked[self._lifetime][tstamp]['image_diff'],
+            image_source=image_difft.copy(),
             image_out=image_out,
-            image_thresh=image_difft,
             )
 
         # Write the framerate on top of the image.

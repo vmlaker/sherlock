@@ -39,8 +39,7 @@ def preprocess(image_in, image_out=None):
     return image_out
 
 def threshold(image_in, image_out=None):
-
-    # Apply threshold.
+    """Apply a sensible threshold."""
     hello, image_out = cv2.threshold(
         image_in,
         thresh=35,
@@ -60,23 +59,20 @@ def threshold(image_in, image_out=None):
         )
     return image_out
     
-def postprocess(image, image_diff, image_out=None, image_thresh=None, rect=False):
-    """Augment given image with given difference.
-    Operate inplace on image, unless given output image."""
-
-    image_thresh = threshold(image_diff)
+def postprocess(image, image_source, image_out=None, rect=False):
+    """Augment *image* with contours from *image_source*.
+    Operate inplace on *image*, unless given *output image*."""
 
     # Find contours.
     contours, hier = cv2.findContours(
-        image_thresh,
-        #np.copy(image_thresh),
+        image_source,  # Note: findContours() changes the image.
         mode=cv2.RETR_EXTERNAL,
         method=cv2.CHAIN_APPROX_NONE,
         )        
 
     # Sort and filter contours.
     # Use a sensible threshold value based on image resolution.
-    area_threshold = image_thresh.shape[0] * image_thresh.shape[1]
+    area_threshold = image_source.shape[0] * image_source.shape[1]
     area_threshold *= 0.00005 /2
     contours = sorted(
         contours, 

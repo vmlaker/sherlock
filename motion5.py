@@ -88,9 +88,10 @@ framerate = util.RateTicker((1,5,10))
 
 def step3(tstamp):
     """Postprocess image using given difference."""
+    image_difft = iproc.threshold(common[tstamp]['image_diff'])
     iproc.postprocess(
         common[tstamp]['image_in'], 
-        image_diff=common[tstamp]['image_diff'],
+        image_source=image_difft,
         image_out=common[tstamp]['image_out'],
         )
 

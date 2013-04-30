@@ -65,7 +65,8 @@ framerate = util.RateTicker((1,5,10))
 
 def step3((image, image_diff)):
     """Postprocess image using given difference."""
-    iproc.postprocess(image, image_diff)
+    image_difft = iproc.threshold(image_diff)  # Threshold the diff.
+    iproc.postprocess(image, image_difft)
     iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
     return image
 

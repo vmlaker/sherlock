@@ -61,8 +61,11 @@ while end > datetime.datetime.now():
         alpha,
         )
 
-    # Draw the difference on top of the image.
-    iproc.postprocess(image, image_diff)
+    # Threshold the difference.
+    image_difft = iproc.threshold(image_diff)
+
+    # Draw the (thresholded) difference on top of the image.
+    iproc.postprocess(image, image_difft)
 
     # Write the framerate on top of the image.
     iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
