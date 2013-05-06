@@ -5,7 +5,6 @@ import sys
 import cv2
 
 import util
-import iproc
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -29,7 +28,7 @@ while end > datetime.datetime.now():
 
     # Take a snapshot, write framerate on it, and display it.
     hello, image = cap.read()        
-    iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),))
+    util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),))
     cv2.imshow(title, image)
     cv2.waitKey(1)
 

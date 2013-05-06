@@ -9,7 +9,6 @@ import gst
 
 import util
 from util import pygst_wrap
-import iproc
 
 DEVICE   = sys.argv[1]
 WIDTH    = int(sys.argv[2])
@@ -32,7 +31,7 @@ def onVideoBuffer(pad, idata):
         buffer=idata,
         )
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),))
+    util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),))
     cv2.imshow(title, image)
     cv2.waitKey(1)
 

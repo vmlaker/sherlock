@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 
 import util
-import iproc
 import cascade
 
 DEVICE   = int(sys.argv[1])
@@ -54,7 +53,7 @@ while end > datetime.datetime.now():
             )
 
     # Write image dimensions and framerate.
-    iproc.writeOSD(
+    util.writeOSD(
         image,
         ('%dx%d'%(size[1], size[0]),
          '%.2f, %.2f, %.2f fps'%framerate.tick()),

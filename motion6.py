@@ -11,7 +11,6 @@ import numpy as np
 import sharedmem
 import mpipe
 import util
-import iproc
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -39,7 +38,7 @@ class Step1Worker(mpipe.OrderedWorker):
     """First step of image processing."""
     def doTask(self, tstamp):
         """Return preprocessed image."""
-        iproc.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
+        util.preprocess(common[tstamp]['image_in'], common[tstamp]['image_pre'])
         return tstamp
  
 
@@ -56,7 +55,7 @@ class Step2Worker(mpipe.OrderedWorker):
         then accumulate and set result with the difference. 
         Initialize accumulation if needed (if opacity is 100%.)"""
 
-        alpha, self._prev_tstamp = iproc.getAlpha(self._prev_tstamp, self._lifetime)
+        alpha, self._prev_tstamp = util.getAlpha(self._prev_tstamp, self._lifetime)
         image_pre = common[tstamp]['image_pre']
         
         # Allocate shared memory for the diff image.
@@ -116,21 +115,21 @@ class Step3Worker(mpipe.OrderedWorker):
         image_out[:] = image_in.copy()
 
         # Threshold the difference.
-        iproc.threshold(
+        util.threshold(
             forked[self._lifetime][tstamp]['image_diff'],
             image_difft,
             )
 
         # Postprocess the output image.
         # It changes the source image, so pass in a copy.
-        iproc.postprocess(
+        util.postprocess(
             image_out,
             image_source=image_difft.copy(),
             image_out=image_out,
             )
 
         # Write the framerate on top of the image.
-        iproc.writeOSD(
+        util.writeOSD(
             image_out, 
             ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
             )

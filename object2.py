@@ -10,7 +10,6 @@ import numpy as np
 import sharedmem
 import mpipe
 import util
-import iproc
 import cascade
 
 DEVICE   = int(sys.argv[1])
@@ -27,7 +26,7 @@ class Preprocessor(mpipe.OrderedWorker):
     """First step of image processing."""
     def doTask(self, tstamp):
         """Return preprocessed image."""
-        iproc.preprocess(
+        util.preprocess(
             common[tstamp]['image_in'], common[tstamp]['image_pre'])
         return tstamp
  
@@ -77,7 +76,7 @@ class Postprocessor(mpipe.OrderedWorker):
 
         # Write image dimensions and framerate.
         size = np.shape(common[tstamp]['image_in'])[:2]
-        iproc.writeOSD(
+        util.writeOSD(
             common[tstamp]['image_in'],
             ('%dx%d'%(size[1], size[0]),
              '%.2f, %.2f, %.2f fps'%framerate.tick()),

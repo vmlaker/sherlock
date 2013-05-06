@@ -7,7 +7,6 @@ import numpy as np
 
 import mpipe
 import util
-import iproc
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -31,8 +30,8 @@ tstamp_prev = None
 def step1(image):
     """Return preprocessed image."""
     global tstamp_prev
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
-    image_pre = iproc.preprocess(image)
+    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
+    image_pre = util.preprocess(image)
     return (image, image_pre, alpha)
  
 def step2((image, image_gray, alpha)):
@@ -65,9 +64,9 @@ framerate = util.RateTicker((1,5,10))
 
 def step3((image, image_diff)):
     """Postprocess image using given difference."""
-    image_difft = iproc.threshold(image_diff)  # Threshold the diff.
-    iproc.postprocess(image, image_difft)
-    iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
+    image_difft = util.threshold(image_diff)  # Threshold the diff.
+    util.postprocess(image, image_difft)
+    util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
     return image
 
 def step4(image):

@@ -10,7 +10,6 @@ import numpy as np
 import sharedmem
 import mpipe
 import util
-import iproc
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -39,7 +38,7 @@ tstamp_prev = None
 def step1(tstamp):
     """Return preprocessed image."""
     global tstamp_prev
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
+    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
     
     # Reassign the modified object to the proxy container in order to
     # notify manager that the mutable value (the dictionary) has changed. See for details:
@@ -48,7 +47,7 @@ def step1(tstamp):
     itstamp['alpha'] = alpha
     common[tstamp] = itstamp  # Reassign modified object to proxy.
 
-    iproc.preprocess(
+    util.preprocess(
         common[tstamp]['image_in'], 
         common[tstamp]['image_pre'])
     return tstamp
@@ -87,15 +86,15 @@ framerate = util.RateTicker((1,5,10))
 
 def step3(tstamp):
     """Postprocess image using given difference."""
-    image_difft = iproc.threshold(common[tstamp]['image_diff'])
-    iproc.postprocess(
+    image_difft = util.threshold(common[tstamp]['image_diff'])
+    util.postprocess(
         common[tstamp]['image_in'], 
         image_source=image_difft,
         image_out=common[tstamp]['image_in'], 
         )
 
     # Write the framerate on top of the image.
-    iproc.writeOSD(
+    util.writeOSD(
         common[tstamp]['image_in'],
         ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
         )

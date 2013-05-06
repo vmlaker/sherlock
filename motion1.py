@@ -7,7 +7,6 @@ import cv2
 import numpy as np
 
 import util
-import iproc
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -39,10 +38,10 @@ while end > datetime.datetime.now():
     hello, image = cap.read()
 
     # Compute alpha value.
-    alpha, tstamp_prev = iproc.getAlpha(tstamp_prev)
+    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
 
     # Preprocess the image.
-    image_pre = iproc.preprocess(image)
+    image_pre = util.preprocess(image)
 
     # Initalize accumulation if so indicated.
     if image_acc is None:
@@ -62,13 +61,13 @@ while end > datetime.datetime.now():
         )
 
     # Threshold the difference.
-    image_difft = iproc.threshold(image_diff)
+    image_difft = util.threshold(image_diff)
 
     # Draw the (thresholded) difference on top of the image.
-    iproc.postprocess(image, image_difft)
+    util.postprocess(image, image_difft)
 
     # Write the framerate on top of the image.
-    iproc.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
+    util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
 
     # Display the image.
     cv2.imshow('motion detection 1', image)
