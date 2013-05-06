@@ -39,9 +39,7 @@ python setup.py install --user
 Multiprocessing workflow is implemented in the [MPipe framework](http://vmlaker.github.io/mpipe/concepts.html). 
 Install the module with:
 ```
-git clone http://github.com/vmlaker/mpipe
-cd mpipe
-python setup.py install --user
+pip install --user mpipe
 ```
 
 Playback test
