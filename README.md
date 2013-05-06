@@ -58,18 +58,18 @@ Motion detection
 
 The following programs demonstrate simplified motion detection:
 
-* ``motion1.py`` - single process
-* ``motion2.py`` - add multiprocessing
-* ``motion3.py`` - add shared memory
-* ``motion4.py`` - adjust for mid-stage result
-* ``motion5.py`` - add frame drop
+* ``diffavg1.py`` - single process
+* ``diffavg2.py`` - add multiprocessing
+* ``diffavg3.py`` - add shared memory
+* ``diffavg4.py`` - adjust for mid-stage result
+* ``diffavg5.py`` - add frame drop
 
 The codes increase in complexity with changes intended to enhance performance. 
 
 The overall processing algorithm is a simple run-of-the-mill foreground/background segmentation using scene average. 
 For example, to run the first program using ``/dev/video0``, try this:
 ```
-python motion1.py 0 640 480 5
+python diffavg1.py 0 640 480 5
 ```
 Now try the others -- compare the framerates and any lag in video output. 
 You might consider profiling resource usage by running with ``time``. 
