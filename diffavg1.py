@@ -1,5 +1,4 @@
-"""Simple single-process sequential image processing
-doing motion detection."""
+"""Difference from running average."""
 
 import datetime
 import sys
@@ -19,7 +18,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the output window.
-cv2.namedWindow('motion detection 1', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('diff average 1', cv2.cv.CV_WINDOW_NORMAL)
 
 # Maintain accumulation of thresholded differences.
 image_acc = None  
@@ -40,37 +39,28 @@ while end > datetime.datetime.now():
     # Compute alpha value.
     alpha, tstamp_prev = util.getAlpha(tstamp_prev)
 
-    # Preprocess the image.
-    image_pre = util.preprocess(image)
-
     # Initalize accumulation if so indicated.
     if image_acc is None:
-        image_acc = np.empty(np.shape(image_pre))
+        image_acc = np.empty(np.shape(image))
 
     # Compute difference.
     image_diff = cv2.absdiff(
-        image_acc.astype(image_pre.dtype),
-        image_pre,
+        image_acc.astype(image.dtype),
+        image,
         )
 
     # Accumulate.
     hello = cv2.accumulateWeighted(
-        image_pre,
+        image,
         image_acc,
         alpha,
         )
 
-    # Threshold the difference.
-    image_difft = util.threshold(image_diff)
-
-    # Draw the (thresholded) difference on top of the image.
-    util.postprocess(image, image_difft)
-
     # Write the framerate on top of the image.
-    util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
+    util.writeOSD(image_diff, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
 
     # Display the image.
-    cv2.imshow('motion detection 1', image)
+    cv2.imshow('diff average 1', image_diff)
 
     # Allow HighGUI to process event.
     cv2.waitKey(1)

@@ -1,4 +1,5 @@
-"""Multiprocess motion detection using shared memory."""
+"""Difference from running average
+with multiprocessing and shared memory."""
 
 import multiprocessing
 import datetime
@@ -6,9 +7,9 @@ import time
 import sys
 import cv2
 import numpy as np
-
-import sharedmem
 import mpipe
+import sharedmem
+
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -22,7 +23,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the output window.
-cv2.namedWindow('motion detection 3', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('diff average 3', cv2.cv.CV_WINDOW_NORMAL)
 
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory and other useful values.
@@ -36,78 +37,62 @@ image_acc = None
 tstamp_prev = None  
 
 def step1(tstamp):
-    """Return preprocessed image."""
-    global tstamp_prev
-    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
-    
-    # Reassign the modified object to the proxy container in order to
-    # notify manager that the mutable value (the dictionary) has changed. See for details:
-    # http://docs.python.org/library/multiprocessing.html#multiprocessing.managers.SyncManager.list
-    itstamp = common[tstamp]
-    itstamp['alpha'] = alpha
-    common[tstamp] = itstamp  # Reassign modified object to proxy.
-
-    util.preprocess(
-        common[tstamp]['image_in'], 
-        common[tstamp]['image_pre'])
-    return tstamp
- 
-def step2(tstamp):
     """Compute difference between given image and accumulation,
     then accumulate and set result with the difference. 
     Initialize accumulation if needed (if opacity is 100%.)"""
-        
-    image_pre = common[tstamp]['image_pre']
+
+    # Compute the alpha value.
+    global tstamp_prev
+    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
+
     image = common[tstamp]['image_in']
-    alpha = common[tstamp]['alpha']
         
     # Initalize accumulation if so indicated.
     global image_acc
     if image_acc is None:
-        image_acc = np.empty(np.shape(image_pre))
+        image_acc = np.empty(np.shape(image))
+
+    # Allocate shared memory for the diff image.
+    shape = np.shape(image)
+    dtype = image.dtype
+    image_diff = sharedmem.empty(shape, dtype)
 
     # Compute difference.
     cv2.absdiff(
-        image_acc.astype(image_pre.dtype),
-        image_pre,
-        common[tstamp]['image_diff']
+        image_acc.astype(image.dtype),
+        image,
+        image_diff,
         )
 
     # Accumulate.
     hello = cv2.accumulateWeighted(
-        image_pre,
+        image,
         image_acc,
         alpha,
         )
+
+    hello = common[tstamp]
+    hello['image_diff'] = image_diff
+    common[tstamp] = hello
+
     return tstamp
 
 # Monitor framerates for the given seconds past.
 framerate = util.RateTicker((1,5,10))
 
-def step3(tstamp):
+def step2(tstamp):
     """Postprocess image using given difference."""
-    image_difft = util.threshold(common[tstamp]['image_diff'])
-    util.postprocess(
-        common[tstamp]['image_in'], 
-        image_source=image_difft,
-        image_out=common[tstamp]['image_in'], 
-        )
 
     # Write the framerate on top of the image.
     util.writeOSD(
-        common[tstamp]['image_in'],
+        common[tstamp]['image_diff'],
         ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
         )
-
-    return tstamp
-
-def step4(tstamp):
-    """Display the output image."""
-    cv2.imshow('motion detection 3', common[tstamp]['image_in'])
+    cv2.imshow('diff average 3', common[tstamp]['image_diff'])
     cv2.waitKey(1)  # Allow HighGUI to process event.
     return tstamp
 
-def step5(tstamp):
+def step3(tstamp):
     """Make sure the timestamp is at least a certain 
     age before propagating it further."""
     delta = datetime.datetime.now() - tstamp
@@ -119,12 +104,8 @@ def step5(tstamp):
 stage1 = mpipe.OrderedStage(step1)
 stage2 = mpipe.OrderedStage(step2)
 stage3 = mpipe.OrderedStage(step3)
-stage4 = mpipe.OrderedStage(step4)
-stage5 = mpipe.OrderedStage(step5)
 stage1.link(stage2)
 stage2.link(stage3)
-stage3.link(stage4)
-stage4.link(stage5)
 pipe = mpipe.Pipeline(stage1)
 
 # Create an auxiliary process (modeled as a one-task pipeline)
@@ -142,24 +123,16 @@ while end > now:
     now = datetime.datetime.now()
     hello, image = cap.read()
 
-    # Allocate shared memory for
-    #   a copy of the input image,
-    #   the preprocessed image,
-    #   the diff image.
+    # Allocate shared memory for a copy of the input image.
     shape = np.shape(image)
     dtype = image.dtype
-    image_in   = sharedmem.empty(shape,     dtype)
-    image_pre  = sharedmem.empty(shape[:2], dtype)
-    image_diff = sharedmem.empty(shape[:2], dtype)
+    image_in   = sharedmem.empty(shape, dtype)
     
     # Copy the input image to it's shared memory version.
     image_in[:] = image.copy()
     
     common[now] = {
         'image_in'   : image_in,
-        'image_pre'  : image_pre,
-        'image_diff' : image_diff,
-        'alpha'      : 1.0,
         }
     pipe.put(now)
 

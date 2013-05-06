@@ -1,11 +1,12 @@
-"""Multiprocess motion detection."""
+"""Difference from running average
+with multiprocessing."""
 
 import datetime
 import sys
 import cv2
 import numpy as np
-
 import mpipe
+
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -19,7 +20,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Create the output window.
-cv2.namedWindow('motion detection 2', cv2.cv.CV_WINDOW_NORMAL)
+cv2.namedWindow('diff average 2', cv2.cv.CV_WINDOW_NORMAL)
 
 # Maintain accumulation of thresholded differences.
 image_acc = None  
@@ -28,59 +29,45 @@ image_acc = None
 tstamp_prev = None  
 
 def step1(image):
-    """Return preprocessed image."""
-    global tstamp_prev
-    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
-    image_pre = util.preprocess(image)
-    return (image, image_pre, alpha)
- 
-def step2((image, image_gray, alpha)):
     """Compute difference between given image and accumulation,
     then accumulate and return the difference. Initialize accumulation
     if needed (if opacity is 100%.)"""
 
+    # Compute the alpha value.
+    global tstamp_prev
+    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
+
     # Initalize accumulation if so indicated.
     global image_acc
     if image_acc is None:
-        image_acc = np.empty(np.shape(image_gray))
+        image_acc = np.empty(np.shape(image))
 
     # Compute difference.
     image_diff = cv2.absdiff(
-        image_acc.astype(image_gray.dtype),
-        image_gray,
+        image_acc.astype(image.dtype),
+        image,
         )
 
     # Accumulate.
     hello = cv2.accumulateWeighted(
-        image_gray,
+        image,
         image_acc,
         alpha,
         )
 
-    return (image, image_diff)
+    return image_diff
 
 # Monitor framerates for the given seconds past.
 framerate = util.RateTicker((1,5,10))
 
-def step3((image, image_diff)):
-    """Postprocess image using given difference."""
-    image_difft = util.threshold(image_diff)  # Threshold the diff.
-    util.postprocess(image, image_difft)
+def step2(image):
     util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
-    return image
-
-def step4(image):
-    """Display the image."""
-    cv2.imshow('motion detection 2', image)
+    cv2.imshow('diff average 2', image)
     cv2.waitKey(1)  # Allow HighGUI to process event.
 
 stage1 = mpipe.OrderedStage(step1)
 stage2 = mpipe.OrderedStage(step2)
-stage3 = mpipe.OrderedStage(step3)
-stage4 = mpipe.OrderedStage(step4)
 stage1.link(stage2)
-stage2.link(stage3)
-stage3.link(stage4)
 pipe = mpipe.Pipeline(stage1)
 
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
