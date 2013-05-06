@@ -6,7 +6,6 @@ import cv2
 import numpy as np
 
 import util
-import cascade
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -31,7 +30,7 @@ while end > datetime.datetime.now():
 
     size = np.shape(image)[:2]
     result = list()
-    for classi in cascade.classifiers:
+    for classi in util.cascade.classifiers:
         rects = classi.detectMultiScale(
             image,
             scaleFactor=1.3,
@@ -41,7 +40,7 @@ while end > datetime.datetime.now():
             )
         if len(rects):
             for a,b,c,d in rects:
-                result.append((a,b,c,d, cascade.colors[classi]))
+                result.append((a,b,c,d, util.cascade.colors[classi]))
 
     # Draw the rectangles.
     for x1, y1, x2, y2, color in result:

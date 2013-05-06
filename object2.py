@@ -9,8 +9,8 @@ import numpy as np
 
 import sharedmem
 import mpipe
+
 import util
-import cascade
 
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
@@ -107,13 +107,13 @@ class Staller(mpipe.OrderedWorker):
 
 # Create the detector pipelines.
 detector_pipes = list()
-for classi in cascade.classifiers:
+for classi in util.cascade.classifiers:
     detector_pipes.append(
         mpipe.Pipeline(
             mpipe.Stage(
                 Detector, 1, 
                 classifier=classi, 
-                color=cascade.colors[classi])))
+                color=util.cascade.colors[classi])))
 
 # Assemble the image processing pipeline:
 #
