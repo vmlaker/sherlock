@@ -31,28 +31,24 @@ cv2.namedWindow('diff average 4', cv2.cv.CV_WINDOW_NORMAL)
 manager = multiprocessing.Manager()
 common = manager.dict()
 
-# Maintain accumulation of thresholded differences.
-image_acc = None  
-
-# Keep track of previous iteration's timestamp.
-tstamp_prev = None  
-
 class Step1(mpipe.OrderedWorker):
+    def __init__(self):
+        self.image_acc = None  # Maintain accumulation of thresholded differences.
+        self.tstamp_prev = None  # Keep track of previous iteration's timestamp.
+
     def doTask(self, tstamp):
         """Compute difference between given image and accumulation,
         then accumulate and set result with the difference. 
         Initialize accumulation if needed (if opacity is 100%.)"""
 
         # Compute the alpha value.
-        global tstamp_prev
-        alpha, tstamp_prev = util.getAlpha(tstamp_prev)
+        alpha, self.tstamp_prev = util.getAlpha(self.tstamp_prev)
 
         image = common[tstamp]['image_in']
         
         # Initalize accumulation if so indicated.
-        global image_acc
-        if image_acc is None:
-            image_acc = np.empty(np.shape(image))
+        if self.image_acc is None:
+            self.image_acc = np.empty(np.shape(image))
 
         # Allocate shared memory for the diff image.
         shape = np.shape(image)
@@ -61,7 +57,7 @@ class Step1(mpipe.OrderedWorker):
         
         # Compute difference.
         cv2.absdiff(
-            image_acc.astype(image.dtype),
+            self.image_acc.astype(image.dtype),
             image,
             image_diff,
             )
@@ -75,7 +71,7 @@ class Step1(mpipe.OrderedWorker):
         # Accumulate.
         hello = cv2.accumulateWeighted(
             image,
-            image_acc,
+            self.image_acc,
             alpha,
             )
 
