@@ -1,10 +1,12 @@
 Sherlock
 ========
 
-Live webcam image processing in Python.
+OpenCV in Python, with multiprocessing and shared memory!
 
-Sherlock is a collection of command-line programs for image processing of live video (e.g. from a webcam), utilizing multiprocessing and shared memory. 
-Written in Python, of course!
+A collection of code doing image processing of live video (e.g. from a webcam),
+demonstrating performance enhancements of full utilization of SMP 
+systems (i.e. multi-core workstations) by combining the power of
+multiprocessing and shared memory. All that in Python, of course!
 
 Software dependencies
 ---------------------
@@ -37,7 +39,7 @@ python setup.py install --user
 ### MPipe
 
 Multiprocessing workflow is implemented in the [MPipe framework](http://vmlaker.github.io/mpipe/concepts.html). 
-Install the module with:
+There's a number of [ways to install MPipe](http://vmlaker.github.io/mpipe/download.html) but the easiest is probably:
 ```
 pip install --user mpipe
 ```
