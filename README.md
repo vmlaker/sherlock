@@ -61,8 +61,7 @@ The following programs demonstrate simplified motion detection:
 * ``diffavg1.py`` - single process
 * ``diffavg2.py`` - add multiprocessing
 * ``diffavg3.py`` - add shared memory
-* ``diffavg4.py`` - adjust for mid-stage result
-* ``diffavg5.py`` - add frame drop
+* ``diffavg4.py`` - add filtering
 
 The codes increase in complexity with changes intended to enhance performance. 
 

@@ -17,73 +17,63 @@ WIDTH    = int(sys.argv[2])
 HEIGHT   = int(sys.argv[3])
 DURATION = float(sys.argv[4])  # In seconds.
 
-# Create the OpenCV video capture object.
-cap = cv2.VideoCapture(DEVICE)
-cap.set(3, WIDTH)
-cap.set(4, HEIGHT)
+# Create a process-shared (common) table keyed on timestamps
+# and holding references to allocated memory.
+manager = multiprocessing.Manager()
+common = manager.dict()
+
+class Step1(mpipe.OrderedWorker):
+    def __init__(self):
+        self.image_acc = None  # Maintain accumulation of thresholded differences.
+        self.tstamp_prev = None  # Keep track of previous iteration's timestamp.
+
+    def doTask(self, tstamp):
+        """Compute difference between given image and accumulation,
+        then accumulate and return the difference. Initialize accumulation
+        if needed (if opacity is 100%.)"""
+        
+        # Compute the alpha value.
+        alpha, self.tstamp_prev = util.getAlpha(self.tstamp_prev)
+
+        image = common[tstamp]['image_in']
+
+        # Initalize accumulation if so indicated.
+        if self.image_acc is None:
+            self.image_acc = np.empty(np.shape(image))
+
+        # Allocate shared memory for the diff image.
+        image_diff = sharedmem.empty(np.shape(image), image.dtype)
+
+        # Compute difference.
+        cv2.absdiff(
+            self.image_acc.astype(image.dtype),
+            image,
+            image_diff,
+            )
+
+        # Write diff image (actually, reference thereof) to process-shared table.
+        hello = common[tstamp]
+        hello['image_diff'] = image_diff
+        common[tstamp] = hello
+        
+        # Propagate result to the next stage.
+        self.putResult(tstamp)
+
+        # Accumulate.
+        hello = cv2.accumulateWeighted(
+            image,
+            self.image_acc,
+            alpha,
+            )
+        
+# Monitor framerates for the given seconds past.
+framerate = util.RateTicker((1,5,10))
 
 # Create the output window.
 cv2.namedWindow('diff average 3', cv2.cv.CV_WINDOW_NORMAL)
 
-# Create a process-shared (common) table keyed on timestamps
-# and holding references to allocated memory and other useful values.
-manager = multiprocessing.Manager()
-common = manager.dict()
-
-# Maintain accumulation of thresholded differences.
-image_acc = None  
-
-# Keep track of previous iteration's timestamp.
-tstamp_prev = None  
-
-def step1(tstamp):
-    """Compute difference between given image and accumulation,
-    then accumulate and set result with the difference. 
-    Initialize accumulation if needed (if opacity is 100%.)"""
-
-    # Compute the alpha value.
-    global tstamp_prev
-    alpha, tstamp_prev = util.getAlpha(tstamp_prev)
-
-    image = common[tstamp]['image_in']
-        
-    # Initalize accumulation if so indicated.
-    global image_acc
-    if image_acc is None:
-        image_acc = np.empty(np.shape(image))
-
-    # Allocate shared memory for the diff image.
-    shape = np.shape(image)
-    dtype = image.dtype
-    image_diff = sharedmem.empty(shape, dtype)
-
-    # Compute difference.
-    cv2.absdiff(
-        image_acc.astype(image.dtype),
-        image,
-        image_diff,
-        )
-
-    # Accumulate.
-    hello = cv2.accumulateWeighted(
-        image,
-        image_acc,
-        alpha,
-        )
-
-    hello = common[tstamp]
-    hello['image_diff'] = image_diff
-    common[tstamp] = hello
-
-    return tstamp
-
-# Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
-
 def step2(tstamp):
-    """Postprocess image using given difference."""
-
-    # Write the framerate on top of the image.
+    """Display the image, stamped with framerate."""
     util.writeOSD(
         common[tstamp]['image_diff'],
         ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
@@ -92,31 +82,32 @@ def step2(tstamp):
     cv2.waitKey(1)  # Allow HighGUI to process event.
     return tstamp
 
-def step3(tstamp):
-    """Make sure the timestamp is at least a certain 
-    age before propagating it further."""
-    delta = datetime.datetime.now() - tstamp
-    duration = datetime.timedelta(seconds=2) - delta
-    if duration > datetime.timedelta():
-        time.sleep(duration.total_seconds())
-    return tstamp
-
-stage1 = mpipe.OrderedStage(step1)
+# Assemble the pipeline.
+stage1 = mpipe.Stage(Step1)
 stage2 = mpipe.OrderedStage(step2)
-stage3 = mpipe.OrderedStage(step3)
 stage1.link(stage2)
-stage2.link(stage3)
 pipe = mpipe.Pipeline(stage1)
 
 # Create an auxiliary process (modeled as a one-task pipeline)
 # that simply pulls results from the image processing pipeline, 
-# and deallocates the associated shared memory.
-def deallocate(task):
+# and deallocates associated shared memory after allowing
+# the designated amount of time to pass.
+def deallocate(age):
     for tstamp in pipe.results():
+        delta = datetime.datetime.now() - tstamp
+        duration = datetime.timedelta(seconds=age) - delta
+        if duration > datetime.timedelta():
+            time.sleep(duration.total_seconds())
         del common[tstamp]
 pipe2 = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
-pipe2.put(True)  # Start it up right away.
+pipe2.put(2)  # Start it up right away.
 
+# Create the OpenCV video capture object.
+cap = cv2.VideoCapture(DEVICE)
+cap.set(3, WIDTH)
+cap.set(4, HEIGHT)
+
+# Run the video capture loop, feeding the image processing pipeline.
 now = datetime.datetime.now()
 end = now + datetime.timedelta(seconds=DURATION)
 while end > now:
@@ -124,22 +115,20 @@ while end > now:
     hello, image = cap.read()
 
     # Allocate shared memory for a copy of the input image.
-    shape = np.shape(image)
-    dtype = image.dtype
-    image_in   = sharedmem.empty(shape, dtype)
+    image_in = sharedmem.empty(np.shape(image), image.dtype)
     
     # Copy the input image to it's shared memory version.
     image_in[:] = image.copy()
     
-    common[now] = {
-        'image_in'   : image_in,
-        }
+    # Add image to process-shared table.
+    common[now] = {'image_in' : image_in}
+
+    # Feed the pipeline.
     pipe.put(now)
 
-# Signal processing pipeline to stop.
+# Signal pipelines to stop, and wait for deallocator
+# to free all memory.
 pipe.put(None)
-
-# Signal deallocator to stop and wait until it frees all memory.
 pipe2.put(None)
 for result in pipe2.results():
     pass
