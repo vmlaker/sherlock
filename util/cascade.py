@@ -11,19 +11,19 @@ specs = (
     #('haarcascade_frontalface_alt2.xml'    , path_to_haar, (0, 255, 0)),
     #('haarcascade_frontalface_alt_tree.xml', path_to_haar, (0, 255, 0)),
     #('haarcascade_frontalface_alt.xml'     , path_to_haar, (0, 255, 0)),
-    ('haarcascade_frontalface_default.xml' , path_to_haar, (127, 255, 127)),
-    ('haarcascade_profileface.xml'         , path_to_haar, (127, 255, 127)),
-    #('lbpcascade_frontalface.xml'          , path_to_lbp,  (0, 255, 0)),
+    #('haarcascade_frontalface_default.xml' , path_to_haar, (127, 255, 127)),
+    #('haarcascade_profileface.xml'         , path_to_haar, (127, 255, 127)),
+    #('lbpcascade_frontalface.xml'          , path_to_lbp,  (127, 255, 127)),
 
     # ===== Ear, mouth, nose =====
-    ('haarcascade_mcs_leftear.xml'         , path_to_haar, (127, 127, 255)),
-    ('haarcascade_mcs_rightear.xml'        , path_to_haar, (127, 127, 255)),
+    #('haarcascade_mcs_leftear.xml'         , path_to_haar, (127, 127, 255)),
+    #('haarcascade_mcs_rightear.xml'        , path_to_haar, (127, 127, 255)),
     #('haarcascade_mcs_mouth.xml'           , path_to_haar, (127, 255, 255)),
-    ('haarcascade_mcs_nose.xml'            , path_to_haar, (255, 127, 127)),
+    #('haarcascade_mcs_nose.xml'            , path_to_haar, (255, 127, 127)),
 
     # ===== Eye =====
     #('haarcascade_eye_tree_eyeglasses.xml', path_to_haar, (0, 255, 0)),
-    ('haarcascade_eye.xml'                , path_to_haar, (127, 0, 255)),
+    ('haarcascade_eye.xml'                , path_to_haar, (0, 255, 223)),
     #('haarcascade_lefteye_2splits.xml'    , path_to_haar, (0, 255, 0)),
     #('haarcascade_righteye_2splits.xml'   , path_to_haar, (0, 255, 0)),
     #('haarcascade_mcs_eyepair_big.xml'    , path_to_haar, (0, 255, 0)),
