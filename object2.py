@@ -17,19 +17,11 @@ WIDTH    = int(sys.argv[2])
 HEIGHT   = int(sys.argv[3])
 DURATION = float(sys.argv[4])  # In seconds.
 
-# Create a process-shared (common) table keyed on timestamps
-# and holding references to allocated memory and other useful values.
+# Create a process-shared table keyed on timestamps
+# and holding references to allocated image memory.
 manager = multiprocessing.Manager()
-common = manager.dict()
+images = manager.dict()
 
-class Preprocessor(mpipe.OrderedWorker):
-    """First step of image processing."""
-    def doTask(self, tstamp):
-        """Return preprocessed image."""
-        util.preprocess(
-            common[tstamp]['image_in'], common[tstamp]['image_pre'])
-        return tstamp
- 
 class Detector(mpipe.OrderedWorker):
     """Detects objects."""
     def __init__(self, classifier, color):
@@ -40,7 +32,7 @@ class Detector(mpipe.OrderedWorker):
         """Run object detection."""
         result = list()
         try:
-            image = common[tstamp]['image_pre']
+            image = images[tstamp]
             size = np.shape(image)[:2]
             rects = self._classifier.detectMultiScale(
                 image,
@@ -68,16 +60,16 @@ class Postprocessor(mpipe.OrderedWorker):
         # Draw rectangles.
         for x1, y1, x2, y2, color in rects:
             cv2.rectangle(
-                common[tstamp]['image_in'],
+                images[tstamp],
                 (x1, y1), (x1+x2, y1+y2),
                 color=color,
                 thickness=2,
                 )
 
         # Write image dimensions and framerate.
-        size = np.shape(common[tstamp]['image_in'])[:2]
+        size = np.shape(images[tstamp])[:2]
         util.writeOSD(
-            common[tstamp]['image_in'],
+            images[tstamp],
             ('%dx%d'%(size[1], size[0]),
              '%.2f, %.2f, %.2f fps'%framerate.tick()),
             )
@@ -88,7 +80,7 @@ class Viewer(mpipe.OrderedWorker):
     """Displays image in a window."""
     def doTask(self, tstamp):
         try:
-            image = common[tstamp]['image_in']
+            image = images[tstamp]
             cv2.imshow('object detection 2', image)
             cv2.waitKey(1)
         except:
@@ -117,11 +109,10 @@ for classi in util.cascade.classifiers:
 
 # Assemble the image processing pipeline:
 #
-#               detector(s)                      viewer
-#                  ||                              ||
-#   preproc --> filter_detector --> postproc --> filter_viewer --> staller
+#   detector(s)                      viewer
+#     ||                               ||
+#   filter_detector --> postproc --> filter_viewer --> staller
 #
-preproc = mpipe.Stage(Preprocessor)
 filter_detector = mpipe.FilterStage(
     detector_stages,
     max_tasks=1,
@@ -132,20 +123,20 @@ filter_viewer = mpipe.FilterStage(
     max_tasks=2)
 staller = mpipe.Stage(Staller)
 
-preproc.link(filter_detector)
 filter_detector.link(postproc)
 postproc.link(filter_viewer)
 filter_viewer.link(staller)
-pipe_iproc = mpipe.Pipeline(preproc)
+pipe_iproc = mpipe.Pipeline(filter_detector)
 
 # Create an auxiliary process (modeled as a one-task pipeline)
 # that simply pulls results from the image processing pipeline
 # and deallocates the associated memory.
 def deallocate(task):
     for tstamp in pipe_iproc.results():
-        del common[tstamp]
+        del images[tstamp]
 pipe_dealloc = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
 pipe_dealloc.put(True)  # Start it up right away.
+
 
 # Create the OpenCV video capture object.
 cap = cv2.VideoCapture(DEVICE)
@@ -169,16 +160,12 @@ while end > now:
     shape = np.shape(image)
     dtype = image.dtype
     image_in = sharedmem.empty(shape, dtype)
-    image_pre = sharedmem.empty(shape[:2], dtype)
 
     # Copy the input image to its shared memory version.
     image_in[:] = image.copy()
     
-    # Add to the common table.
-    common[now] = {
-        'image_in'  : image_in,   # Input image.
-        'image_pre' : image_pre,  # Preprocessed image.
-        }
+    # Add to the images table.
+    images[now] = image_in  # Input image.
 
     # Put the timestamp on the image processing pipeline.
     pipe_iproc.put(now)
@@ -186,9 +173,9 @@ while end > now:
 # Capturing of video is done. Now let's shut down all
 # pipelines by sending them the "stop" task.
 pipe_iproc.put(None)
-
-# Signal deallocator to stop and wait until it frees all memory.
 pipe_dealloc.put(None)
+
+# Wait for deallocator to free all memory.
 for result in pipe_dealloc.results():
     pass
 
