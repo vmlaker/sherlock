@@ -105,30 +105,35 @@ class Staller(mpipe.OrderedWorker):
             time.sleep(duration.total_seconds())
         return tstamp
 
-# Create the detector pipelines.
-detector_pipes = list()
+# Create the detector stages.
+detector_stages = list()
 for classi in util.cascade.classifiers:
-    detector_pipes.append(
-        mpipe.Pipeline(
-            mpipe.Stage(
-                Detector, 1, 
-                classifier=classi, 
-                color=util.cascade.colors[classi])))
+    detector_stages.append(
+        mpipe.Stage(
+            Detector, 1, 
+            classifier=classi, 
+            color=util.cascade.colors[classi]),
+        )
 
 # Assemble the image processing pipeline:
 #
-#            detector_pipe(s)                   viewer
-#                  ||                             ||
-#   preproc --> detector --> postproc --+--> filter_viewer --> staller
+#               detector(s)                      viewer
+#                  ||                              ||
+#   preproc --> filter_detector --> postproc --> filter_viewer --> staller
 #
 preproc = mpipe.Stage(Preprocessor)
-detector = mpipe.FilterStage(detector_pipes, max_tasks=1)
+filter_detector = mpipe.FilterStage(
+    detector_stages,
+    max_tasks=1,
+    )
 postproc = mpipe.Stage(Postprocessor)
-pipe_viewer = mpipe.Pipeline(mpipe.Stage(Viewer))
-filter_viewer = mpipe.FilterStage((pipe_viewer,), max_tasks=2)
+filter_viewer = mpipe.FilterStage(
+    (mpipe.Stage(Viewer),), 
+    max_tasks=2)
 staller = mpipe.Stage(Staller)
-preproc.link(detector)
-detector.link(postproc)
+
+preproc.link(filter_detector)
+filter_detector.link(postproc)
 postproc.link(filter_viewer)
 filter_viewer.link(staller)
 pipe_iproc = mpipe.Pipeline(preproc)
@@ -181,13 +186,6 @@ while end > now:
 # Capturing of video is done. Now let's shut down all
 # pipelines by sending them the "stop" task.
 pipe_iproc.put(None)
-for pipe in detector_pipes:
-    pipe.put(None)
-    for result in pipe.results():
-        pass
-pipe_viewer.put(None)
-for result in pipe_viewer.results():
-    pass
 
 # Signal deallocator to stop and wait until it frees all memory.
 pipe_dealloc.put(None)

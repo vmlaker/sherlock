@@ -105,9 +105,8 @@ def step3(tstamp):
     return tstamp
 
 
-pipe3 = mpipe.Pipeline(mpipe.OrderedStage(step2))
 stage2 = mpipe.FilterStage(
-    (pipe3,),
+    (mpipe.OrderedStage(step2),),
     max_tasks=1,
     drop_results=True,
     do_stop_task=True,
