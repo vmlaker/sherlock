@@ -87,16 +87,6 @@ class Viewer(mpipe.OrderedWorker):
             print('Error in viewer !!!')
         return tstamp
 
-class Staller(mpipe.OrderedWorker):
-    def doTask(self, (tstamp, results,)):
-        """Make sure the timestamp is at least a certain 
-        age before propagating it further."""
-        delta = datetime.datetime.now() - tstamp
-        duration = datetime.timedelta(seconds=2) - delta
-        if duration > datetime.timedelta():
-            time.sleep(duration.total_seconds())
-        return tstamp
-
 # Create the detector stages.
 detector_stages = list()
 for classi in util.cascade.classifiers:
@@ -111,7 +101,7 @@ for classi in util.cascade.classifiers:
 #
 #   detector(s)                      viewer
 #     ||                               ||
-#   filter_detector --> postproc --> filter_viewer --> staller
+#   filter_detector --> postproc --> filter_viewer
 #
 filter_detector = mpipe.FilterStage(
     detector_stages,
@@ -120,23 +110,27 @@ filter_detector = mpipe.FilterStage(
 postproc = mpipe.Stage(Postprocessor)
 filter_viewer = mpipe.FilterStage(
     (mpipe.Stage(Viewer),), 
-    max_tasks=2)
-staller = mpipe.Stage(Staller)
+    max_tasks=2,
+    drop_results=True,
+    )
 
 filter_detector.link(postproc)
 postproc.link(filter_viewer)
-filter_viewer.link(staller)
 pipe_iproc = mpipe.Pipeline(filter_detector)
 
 # Create an auxiliary process (modeled as a one-task pipeline)
-# that simply pulls results from the image processing pipeline
-# and deallocates the associated memory.
-def deallocate(task):
+# that simply pulls results from the image processing pipeline, 
+# and deallocates associated shared memory after allowing
+# the designated amount of time to pass.
+def deallocate(age):
     for tstamp in pipe_iproc.results():
+        delta = datetime.datetime.now() - tstamp
+        duration = datetime.timedelta(seconds=age) - delta
+        if duration > datetime.timedelta():
+            time.sleep(duration.total_seconds())
         del images[tstamp]
 pipe_dealloc = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
-pipe_dealloc.put(True)  # Start it up right away.
-
+pipe_dealloc.put(2)  # Start it up right away.
 
 # Create the OpenCV video capture object.
 cap = cv2.VideoCapture(DEVICE)
@@ -170,12 +164,10 @@ while end > now:
     # Put the timestamp on the image processing pipeline.
     pipe_iproc.put(now)
 
-# Capturing of video is done. Now let's shut down all
-# pipelines by sending them the "stop" task.
+# Signal pipelines to stop, and wait for deallocator
+# to free all memory.
 pipe_iproc.put(None)
 pipe_dealloc.put(None)
-
-# Wait for deallocator to free all memory.
 for result in pipe_dealloc.results():
     pass
 
