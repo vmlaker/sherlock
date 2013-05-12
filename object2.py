@@ -106,6 +106,7 @@ for classi in util.cascade.classifiers:
 filter_detector = mpipe.FilterStage(
     detector_stages,
     max_tasks=1,
+    cache_results=True,
     )
 postproc = mpipe.Stage(Postprocessor)
 filter_viewer = mpipe.FilterStage(
