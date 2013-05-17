@@ -6,6 +6,7 @@ import time
 import sys
 import cv2
 import numpy as np
+import socket
 
 import sharedmem
 import mpipe
@@ -15,7 +16,7 @@ import util
 DEVICE   = int(sys.argv[1])
 WIDTH    = int(sys.argv[2])
 HEIGHT   = int(sys.argv[3])
-DURATION = float(sys.argv[4])  # In seconds.
+DURATION = float(sys.argv[4])  # In seconds, or -(port#) if negative.
 
 # Create a process-shared table keyed on timestamps
 # and holding references to allocated image memory.
@@ -140,10 +141,21 @@ cap.set(4, HEIGHT)
 
 # Run the video capture loop, allocating shared memory
 # and feeding the image processing pipeline.
+# Run for configured duration, or (if duration < 0) until we
+# connect to socket (duration re-interpreted as port number.)
 now = datetime.datetime.now()
 end = now + datetime.timedelta(seconds=DURATION)
-while end > now:
+while end > now or DURATION < 0:
 
+    if DURATION < 0:
+        # Bail if we connect to socket.
+        try:
+            socket.socket().connect(('', int(abs(DURATION))))
+            print('stopping')
+            break
+        except:
+            pass
+                  
     # Mark the timestamp. This is the index by which 
     # image procesing stages will access allocated memory.
     now = datetime.datetime.now()
