@@ -124,15 +124,14 @@ pipe_iproc = mpipe.Pipeline(filter_detector)
 # that simply pulls results from the image processing pipeline, 
 # and deallocates associated shared memory after allowing
 # the designated amount of time to pass.
-def deallocate(age):
+def deallocate(tdelta):
     for tstamp in pipe_iproc.results():
-        delta = datetime.datetime.now() - tstamp
-        duration = datetime.timedelta(seconds=age) - delta
-        if duration > datetime.timedelta():
-            time.sleep(duration.total_seconds())
+        elapsed = datetime.datetime.now() - tstamp
+        if tdelta - elapsed > datetime.timedelta():
+            time.sleep(tdelta.total_seconds())
         del images[tstamp]
 pipe_dealloc = mpipe.Pipeline(mpipe.UnorderedStage(deallocate))
-pipe_dealloc.put(2)  # Start it up right away.
+pipe_dealloc.put(datetime.timedelta(microseconds=1e6))  # Start it up right away.
 
 # Create the OpenCV video capture object.
 cap = cv2.VideoCapture(DEVICE)
