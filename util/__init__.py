@@ -1,4 +1,3 @@
-from .RateTicker import RateTicker
 from .iproc import getAlpha
 from .iproc import preprocess
 from .iproc import postprocess

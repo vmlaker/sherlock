@@ -11,6 +11,7 @@ import socket
 import sharedmem
 import mpipe
 
+import coils
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -50,7 +51,7 @@ class Detector(mpipe.OrderedWorker):
         return result
 
 # Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
+framerate = coils.RateTicker((2,))
 
 class Postprocessor(mpipe.OrderedWorker):
     def doTask(self, (tstamp, rects,)):
@@ -72,7 +73,7 @@ class Postprocessor(mpipe.OrderedWorker):
         util.writeOSD(
             images[tstamp],
             ('%dx%d'%(size[1], size[0]),
-             '%.2f, %.2f, %.2f fps'%framerate.tick()),
+             '%.1f fps'%framerate.tick()),
             )
         return tstamp
 
@@ -143,7 +144,7 @@ cap.set(4, HEIGHT)
 # Run for configured duration, or (if duration < 0) until we
 # connect to socket (duration re-interpreted as port number.)
 now = datetime.datetime.now()
-end = now + datetime.timedelta(seconds=DURATION)
+end = now + datetime.timedelta(seconds=abs(DURATION))
 while end > now or DURATION < 0:
 
     if DURATION < 0:

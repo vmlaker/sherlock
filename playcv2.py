@@ -4,6 +4,7 @@ import datetime
 import sys
 import cv2
 
+import coils
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -12,7 +13,7 @@ HEIGHT   = int(sys.argv[3])
 DURATION = float(sys.argv[4])
 
 # Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
+framerate = coils.RateTicker((1,5,10))
 
 # Create the OpenCV video capture object.
 cap = cv2.VideoCapture(DEVICE)

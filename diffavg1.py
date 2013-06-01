@@ -5,6 +5,7 @@ import sys
 import cv2
 import numpy as np
 
+import coils
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -27,7 +28,7 @@ image_acc = None
 tstamp_prev = None  
 
 # Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
+framerate = coils.RateTicker((1,5,10))
 
 # Run the loop for designated amount of time.
 end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)

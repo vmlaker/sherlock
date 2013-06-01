@@ -11,6 +11,7 @@ import numpy as np
 import mpipe
 import sharedmem
 
+import coils
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -27,7 +28,7 @@ class Step1(mpipe.OrderedWorker):
     def __init__(self):
         self.image_acc = None  # Maintain accumulation of thresholded differences.
         self.tstamp_prev = None  # Keep track of previous iteration's timestamp.
-        self.framerate = util.RateTicker((1,5,10))  # Monitor framerates.
+        self.framerate = coils.RateTicker((1,5,10))  # Monitor framerates.
 
     def doTask(self, tstamp):
         """Compute difference between given image and accumulation,
@@ -77,7 +78,7 @@ class Step1(mpipe.OrderedWorker):
             )
 
 # Monitor framerates for the given seconds past.
-framerate2 = util.RateTicker((1,5,10))
+framerate2 = coils.RateTicker((1,5,10))
 
 # Create the output window.
 cv2.namedWindow('diff average 4', cv2.cv.CV_WINDOW_NORMAL)

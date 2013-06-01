@@ -10,6 +10,7 @@ import numpy as np
 import mpipe
 import sharedmem
 
+import coils
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -67,7 +68,7 @@ class Step1(mpipe.OrderedWorker):
             )
         
 # Monitor framerates for the given seconds past.
-framerate = util.RateTicker((1,5,10))
+framerate = coils.RateTicker((1,5,10))
 
 # Create the output window.
 cv2.namedWindow('diff average 3', cv2.cv.CV_WINDOW_NORMAL)

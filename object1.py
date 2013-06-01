@@ -5,6 +5,7 @@ import sys
 import cv2
 import numpy as np
 
+import coils
 import util
 
 DEVICE   = int(sys.argv[1])
@@ -18,7 +19,7 @@ cap.set(3, WIDTH)
 cap.set(4, HEIGHT)
 
 # Monitor framerates.
-framerate = util.RateTicker((1,5,10))
+framerate = coils.RateTicker((1,5,10))
 
 # Allow view window to be resizeable.
 cv2.namedWindow('object detection 1', cv2.cv.CV_WINDOW_NORMAL)
