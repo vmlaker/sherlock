@@ -1,0 +1,3 @@
+[submodule "coils"]
+	path = coils
+	url = http://github.com/vmlaker/coils
