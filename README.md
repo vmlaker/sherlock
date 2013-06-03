@@ -33,7 +33,7 @@ aptitude install python-opencv
 ### 3. Get numpy-sharedmem
 
 ```
-hg clone https://cleemesser@bitbucket.org/cleemesser/numpy-sharedmem/
+hg clone http://bitbucket.org/cleemesser/numpy-sharedmem
 cd numpy-sharedmem
 python setup.py install --user
 ```
