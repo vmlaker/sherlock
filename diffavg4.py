@@ -21,8 +21,7 @@ DURATION = float(sys.argv[4])  # In seconds.
 
 # Create a process-shared (common) table keyed on timestamps
 # and holding references to allocated memory.
-manager = multiprocessing.Manager()
-common = manager.dict()
+common = multiprocessing.Manager().dict()
 
 class Step1(mpipe.OrderedWorker):
     def __init__(self):

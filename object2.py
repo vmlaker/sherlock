@@ -21,8 +21,7 @@ DURATION = float(sys.argv[4])  # In seconds, or -(port#) if negative.
 
 # Create a process-shared table keyed on timestamps
 # and holding references to allocated image memory.
-manager = multiprocessing.Manager()
-images = manager.dict()
+images = multiprocessing.Manager().dict()
 
 class Detector(mpipe.OrderedWorker):
     """Detects objects."""
