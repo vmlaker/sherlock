@@ -55,11 +55,9 @@ class Step1(mpipe.OrderedWorker):
             image_diff,
             )
 
-        util.writeOSD(
-            image_diff,
-            ('',  # Keep first line empty (will be written to later.)
-             '(%.2f, %.2f, %.2f fps process)'%self.framerate.tick(),),
-        )
+        # Write the framerate on top of the image.
+        fps_text = '{:.2f}, {:.2f}, {:.2f} fps process'.format(*self.framerate.tick())
+        util.writeOSD(image_diff, ('', fps_text,))  # First line is blank (written to later.)
         
         # Write diff image (actually, reference thereof) to process-shared table.
         hello = common[tstamp]
@@ -84,10 +82,8 @@ cv2.namedWindow('diff average 4', cv2.cv.CV_WINDOW_NORMAL)
 
 def step2(tstamp):
     """Display the image, stamped with framerate."""
-    util.writeOSD(
-        common[tstamp]['image_diff'],
-        ('%.2f, %.2f, %.2f fps'%framerate2.tick(),),
-        )
+    fps_text = '{:.2f}, {:.2f}, {:.2f} fps'.format(*framerate2.tick())
+    util.writeOSD(common[tstamp]['image_diff'], (fps_text,))
     cv2.imshow('diff average 4', common[tstamp]['image_diff'])
     cv2.waitKey(1)  # Allow HighGUI to process event.
     return tstamp
@@ -152,5 +148,3 @@ pipe.put(None)
 pipe2.put(None)
 for result in pipe2.results():
     pass
-
-# The end.

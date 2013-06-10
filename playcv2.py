@@ -28,9 +28,8 @@ end = datetime.datetime.now() + datetime.timedelta(seconds=DURATION)
 while end > datetime.datetime.now():
 
     # Take a snapshot, write framerate on it, and display it.
-    hello, image = cap.read()        
-    util.writeOSD(image, ('%.2f, %.2f, %.2f fps'%framerate.tick(),))
+    hello, image = cap.read()
+    fps_text = '{:.2f}, {:.2f}, {:.2f} fps'.format(*framerate.tick())
+    util.writeOSD(image, (fps_text,))
     cv2.imshow(title, image)
     cv2.waitKey(1)
-
-# The end.

@@ -58,12 +58,11 @@ while end > datetime.datetime.now():
         )
 
     # Write the framerate on top of the image.
-    util.writeOSD(image_diff, ('%.2f, %.2f, %.2f fps'%framerate.tick(),),)
+    fps_text = '{:.2f}, {:.2f}, {:.2f} fps'.format(*framerate.tick())
+    util.writeOSD(image_diff, (fps_text,))
 
     # Display the image.
     cv2.imshow('diff average 1', image_diff)
 
     # Allow HighGUI to process event.
     cv2.waitKey(1)
-
-# The end.

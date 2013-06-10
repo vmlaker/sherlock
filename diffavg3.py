@@ -74,10 +74,8 @@ cv2.namedWindow('diff average 3', cv2.cv.CV_WINDOW_NORMAL)
 
 def step2(tstamp):
     """Display the image, stamped with framerate."""
-    util.writeOSD(
-        common[tstamp]['image_diff'],
-        ('%.2f, %.2f, %.2f fps'%framerate.tick(),),
-        )
+    fps_text = '{:.2f}, {:.2f}, {:.2f} fps'.format(*framerate.tick())
+    util.writeOSD(common[tstamp]['image_diff'], (fps_text,))
     cv2.imshow('diff average 3', common[tstamp]['image_diff'])
     cv2.waitKey(1)  # Allow HighGUI to process event.
     return tstamp
@@ -132,5 +130,3 @@ pipe.put(None)
 pipe2.put(None)
 for result in pipe2.results():
     pass
-
-# The end.

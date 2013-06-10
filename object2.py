@@ -69,10 +69,10 @@ class Postprocessor(mpipe.OrderedWorker):
 
         # Write image dimensions and framerate.
         size = np.shape(images[tstamp])[:2]
+        fps_text = '{:.2f} fps'.format(*framerate.tick())
         util.writeOSD(
             images[tstamp],
-            ('%dx%d'%(size[1], size[0]),
-             '%.1f fps'%framerate.tick()),
+            ('{0}x{1}'.format(size[1], size[0]), fps_text),
             )
         return tstamp
 

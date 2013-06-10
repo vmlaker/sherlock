@@ -53,13 +53,11 @@ while end > datetime.datetime.now():
             )
 
     # Write image dimensions and framerate.
+    fps_text = '{:.2f}, {:.2f}, {:.2f} fps'.format(*framerate.tick())
     util.writeOSD(
-        image,
-        ('%dx%d'%(size[1], size[0]),
-         '%.2f, %.2f, %.2f fps'%framerate.tick()),
+        image, 
+        ('{0}x{1}'.format(size[1], size[0]), fps_text),
         )
 
     cv2.imshow('object detection 1', image)
     cv2.waitKey(1)
-
-# The end.
