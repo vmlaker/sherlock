@@ -1,2 +1,3 @@
 mpipe==1.0.7
 numpy==1.7.1
+Cython==0.19.1
