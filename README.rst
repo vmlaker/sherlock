@@ -16,60 +16,72 @@ Parallel processing workflow is implemented with
 Installation
 ------------
 
-1. Get the Sherlock codes:
+1. Get OpenCV Python bindings, using YUM:
 ::
 
-  git clone --recursive http://github.com/vmlaker/sherlock
-
-2. Get OpenCV Python bindings, using YUM:
-::
-
-  yum install opencv-python
+   yum install opencv-python
  
 or using Aptitude:
 ::
 
-  aptitude install python-opencv
+   aptitude install python-opencv
 
-3. Get numpy-sharedmem:
+2. Get the project code:
 ::
 
-  hg clone http://bitbucket.org/cleemesser/numpy-sharedmem
-  cd numpy-sharedmem
-  python setup.py install --user
+   git clone --recursive http://github.com/vmlaker/sherlock
 
-4. Get MPipe:
+3. Run make:
 ::
 
-  pip install --user mpipe
-
+   cd sherlock
+   make
 
 Playback test
 -------------
 
 First thing, test your OpenCV Python bindings.
 The following command shows live view from the first video device 
-(i.e. ``/dev/video0``) for a duration of 5 seconds:
+(i.e. ``/dev/video0``) for a duration of 8 seconds:
 ::
 
-  python playcv2.py 0 640 480 5
+   make playcv2
 
 Motion detection
 ----------------
 
-The following programs demonstrate simplified motion detection.
-The codes increase in complexity with changes intended to enhance performance. 
+The following demonstrate simplified motion detection.
+Each iteraton increases in complexity with cumulative changes 
+intended to enhance performance. 
 
-* ``diffavg1.py`` - single process
-* ``diffavg2.py`` - add multiprocessing
-* ``diffavg3.py`` - add shared memory
-* ``diffavg4.py`` - add filtering
-
-Processing algorithm is a run-of-the-mill foreground/background segmentation using scene average. 
-Run the first program on input from ``/dev/video0`` with:
+1) Run one process:
 ::
 
-  python diffavg1.py 0 640 480 5
+   make diffavg1
 
-Now try the others -- compare the framerates and any lag in video output. 
+2) Add parallel processing:
+::
+
+   make diffavg2
+
+3) Add shared memory:
+::
+
+   make diffavg3
+
+4) Add filtering:
+::
+
+   make diffavg4
+
+Processing algorithm is a run-of-the-mill foreground/background segmentation using scene average. 
 Consider profiling resource usage by running with ``time``.
+
+Object detection
+----------------
+
+Run face detection using Haar cascade classifier:
+::
+
+   make object1
+   make object2

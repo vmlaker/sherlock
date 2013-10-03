@@ -1,4 +1,11 @@
+# Makefile for Sherlock.
+
+# Some of these may need adjusting on specific systems.
 VENV_LIB = venv/lib/python2.7
+CV2_SO = $(VENV_LIB)/cv2.so
+SHAREDMEM = $(VENV_LIB)/site-packages/sharedmem
+
+all: venv $(SHAREDMEM) $(CV2_SO)
 
 venv: venv/bin/activate
 
@@ -6,14 +13,14 @@ venv/bin/activate: requirements.txt
 	test -d venv || virtualenv venv
 	. venv/bin/activate && pip install -r requirements.txt
 
-CV2_SO = $(VENV_LIB)/cv2.so
-SHAREDMEM = $(VENV_LIB)/site-packages/sharedmem
+# Find OpenCV's cv2 library file for the global Python installation.
+CV2_LIB := $(shell python -c 'import cv2; print(cv2)' | awk '{print $$4}' | sed s:"['>]":"":g)
 
-LIB := $(shell python -c 'import cv2; print(cv2)' | awk '{print $$4}' | sed s:"['>]":"":g)
+# Link the global cv2 library file inside the virtual environment.
+$(CV2_SO): $(CV2_LIB)
+	ln -s $(CV2_LIB) $(VENV_LIB)/
 
-$(CV2_SO): $(LIB)
-	ln -s $(LIB) $(VENV_LIB)/
-
+# Install NumPy sharedmem module inside the virtual environment.
 $(SHAREDMEM): venv
 	. venv/bin/activate && \
 	mkdir temp && pushd temp && \
