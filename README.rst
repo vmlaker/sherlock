@@ -80,8 +80,20 @@ Consider profiling resource usage by running with ``time``.
 Object detection
 ----------------
 
-Run face detection using Haar cascade classifier:
+Objects in the video stream are detected using Haar feature-based 
+cascade classifiers. Active classifiers are listed in
+``src/util/cascade.py`` file. By default, these are 
+vanilla classifiers shipped with OpenCV distribution.
+You can edit this file to activate (or deactivate) classifiers,
+change search paths, add your own custom classifiers,
+and configure global object detection parameters.
+
+Run face detection serially:
 ::
 
    make object1
+
+Run face detection in parallel:
+::
+
    make object2
