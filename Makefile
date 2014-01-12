@@ -23,7 +23,7 @@ $(CV2_SO): $(CV2_LIB)
 # Install NumPy sharedmem module inside the virtual environment.
 $(SHAREDMEM): venv
 	. venv/bin/activate && \
-	mkdir temp && pushd temp && \
+	mkdir -p temp && pushd temp && \
 	hg clone http://bitbucket.org/cleemesser/numpy-sharedmem && \
 	cd numpy-sharedmem && \
 	python setup.py install && \
@@ -51,4 +51,4 @@ object2: venv $(CV2_SO)
 	. venv/bin/activate && python src/object2.py 0 640 480 8
 
 clean:
-	rm -rf venv
+	rm -rf venv temp
