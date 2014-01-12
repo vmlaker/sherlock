@@ -9,6 +9,9 @@ VENV_LIBDIR = venv/lib/python2.7
 VENV_OPENCV = $(VENV_LIBDIR)/cv2.so
 VENV_SHAREDMEM = $(VENV_LIBDIR)/site-packages/sharedmem
 
+# This makefile uses bash shell commands.
+SHELL := /bin/bash
+
 # Find OpenCV's cv2 library file for the global Python installation.
 GLOBAL_OPENCV := $(shell python -c 'import cv2; print(cv2)' | awk '{print $$4}' | sed s:"['>]":"":g)
 
