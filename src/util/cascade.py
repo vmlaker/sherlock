@@ -13,6 +13,10 @@ dirs = (
     # On Debian.
     '/usr/share/opencv/haarcascades',
     '/usr/share/opencv/lbpcascades',
+
+    # On OS X.
+    '/usr/local/share/OpenCV/haarcascades',
+    '/usr/local/share/OpenCV/lbpcascades',
 )
 
 # Listed below are classifiers used 

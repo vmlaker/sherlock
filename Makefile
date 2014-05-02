@@ -12,14 +12,21 @@ VENV_SHAREDMEM = $(VENV_LIBDIR)/site-packages/sharedmem
 # This makefile uses bash shell commands.
 SHELL := /bin/bash
 
-# Find OpenCV's cv2 library file for the global Python installation.
+# GLOBAL_OPENCV is the path to the system-installed OpenCV
+# library cv2.so file. By default, the path is functionally
+# obtained by printing the imported cv2 module in a Python shell.
+#
+# Alternatively, set the path explicitly. For OpenCV installation
+# via Homebrew on OS X for example:
+#
+# GLOBAL_OPENCV := /usr/local/lib/python2.7/site-packages/cv2.so
 GLOBAL_OPENCV := $(shell python -c 'import cv2; print(cv2)' | awk '{print $$4}' | sed s:"['>]":"":g)
 
 all: venv $(VENV_SHAREDMEM) $(VENV_OPENCV)
 
 # Link the global cv2 library file inside the virtual environment.
 $(VENV_OPENCV): $(GLOBAL_OPENCV) venv
-	cp $(GLOBAL_OPENCV) $@
+	cp -f $(GLOBAL_OPENCV) $@
 
 venv: venv/bin/activate
 

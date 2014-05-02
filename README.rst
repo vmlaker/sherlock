@@ -4,44 +4,51 @@
 Sherlock
 ========
 
-OpenCV in Python, with multiprocessing and shared memory.
+*OpenCV in Python, with multiprocessing and shared memory!*
 
 A collection of small codes for processing live video 
 (like from a webcam) with `OpenCV <http://opencv.org>`_.
-Image data (NumPy arrays) are shared by multiple processes using
+Image data in memory (NumPy arrays) are shared by multiple processes using
 `numpy-sharedmem Python module <http://bitbucket.org/cleemesser/numpy-sharedmem>`_.
 Parallel processing workflow is implemented with 
 `MPipe <http://vmlaker.github.io/mpipe/concepts.html>`_. 
 
-Installation
-------------
+Download and Install
+--------------------
 
-1. Get OpenCV Python bindings, using YUM:
-::
+#. First thing, you'll need OpenCV Python bindings on your system.
+   Get it using **YUM**:
+   ::
 
-   yum install opencv-python
- 
-or using Aptitude:
-::
+      yum install opencv-python
 
-   aptitude install python-opencv
+   or **Aptitude**:
+   ::
 
-2. Get the project code:
-::
+      aptitude install python-opencv
 
-   git clone --recursive http://github.com/vmlaker/sherlock
+   or **Homebrew** (on OS X):
+   ::
+   
+      brew tap homebrew/science
+      brew install opencv
 
-3. Run make:
-::
+#. Okay, now get the project code:
+   ::
 
-   cd sherlock
-   make
+      git clone --recursive http://github.com/vmlaker/sherlock
+
+#. Run make:
+   ::
+
+      cd sherlock
+      make
 
 Playback test
 -------------
 
-First thing, test your OpenCV Python bindings.
-The following command shows live view from the first video device 
+For starters, let's test your OpenCV Python bindings.
+This command shows live view from the first video device 
 (i.e. ``/dev/video0``) for a duration of 8 seconds:
 ::
 
@@ -50,32 +57,32 @@ The following command shows live view from the first video device
 Motion detection
 ----------------
 
-The following demonstrate simplified motion detection.
+The following cases demonstrate simplified motion detection.
 Each iteraton increases in complexity with cumulative changes 
 intended to enhance performance. 
 
-1) Run one process:
-::
+#. Run one process:
+   ::
 
-   make diffavg1
+      make diffavg1
 
-2) Add parallel processing:
-::
+#. Add parallel processing:
+   ::
+      
+      make diffavg2
 
-   make diffavg2
+#. Add shared memory:
+   ::
 
-3) Add shared memory:
-::
+      make diffavg3
 
-   make diffavg3
+#. Add filtering:
+   ::
 
-4) Add filtering:
-::
-
-   make diffavg4
+      make diffavg4
 
 Processing algorithm is a run-of-the-mill foreground/background segmentation using scene average. 
-Consider profiling resource usage by running with ``time``.
+Consider profiling resource usage by running with ``time`` command.
 
 Object detection
 ----------------
