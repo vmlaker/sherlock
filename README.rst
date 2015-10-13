@@ -36,7 +36,7 @@ Download and Install
 #. Okay, now get the project code:
    ::
 
-      git clone --recursive http://github.com/vmlaker/sherlock
+      git clone https://github.com/vmlaker/sherlock
 
 #. Run make:
    ::
