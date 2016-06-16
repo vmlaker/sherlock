@@ -1,4 +1,4 @@
-coils==1.0.6
-Cython==0.21.2
+coils==1.0.9
+Cython==0.24
 mpipe==1.0.8
-numpy==1.9.1
+numpy==1.11.0
